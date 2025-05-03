@@ -1,0 +1,13 @@
+name: remla-model-training
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - huggingface_hub=0.30.2
+  - pandas=2.2.3
+  - nltk=3.9.1
+  - scikit-learn=1.6.1
+  - numpy=2.2.5
+  - pip
+  - pip:

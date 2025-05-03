@@ -5,6 +5,12 @@ This repository will contain the ML training pipeline.
 - The `train.py` script will execute the training steps and make the model accessible publicly via huggingface.
 
 ## Running locally
+First setup environment using:
+```bash
+conda env -f environment.yaml
+conda activate remla-model-training
+```
+Then run:
 ```bash
 python train.py local
 ```
@@ -13,7 +19,13 @@ python train.py local
 You can configure build details and ports in the `docker-compose`. For details on the container environment look at `Dockerfile`.
 
 ```bash
-docker-compose up
+docker compose up
+```
+
+If you want to see changes made to src files in your docker container without recreating it use:
+
+```bash
+docker compose up --watch
 ```
 
 ## How to access the resulting model externally.
