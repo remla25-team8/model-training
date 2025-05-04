@@ -12,20 +12,17 @@ conda activate remla-model-training
 ```
 Then run:
 ```bash
-python train.py local
+python train.py local-dev
 ```
+
+Note: If the local-dev flag is enabled then the model training will happen but the resulting model will not be uploaded to the model registry.
 
 ## Running via Docker Container
-You can configure build details and ports in the `docker-compose`. For details on the container environment look at `Dockerfile`.
+You can configure build details in the `docker-compose`. For details on the container environment look at `Dockerfile`.
 
+To run the training via container run the following command:
 ```bash
 docker compose up
-```
-
-If you want to see changes made to src files in your docker container without recreating it use:
-
-```bash
-docker compose up --watch
 ```
 
 ## How to access the resulting model externally.
