@@ -10,12 +10,16 @@ First setup environment using:
 conda env -f environment.yaml
 conda activate remla-model-training
 ```
-Then run:
+To execute model training without uploading to the model registry run:
 ```bash
 python train.py local-dev
 ```
 
-Note: If the local-dev flag is enabled then the model training will happen but the resulting model will not be uploaded to the model registry.
+To execute training and upload run:
+```bash
+python train.py production --version <version>
+```
+Note: You will need to have a unique version.
 
 ## Running via Docker Container
 You can configure build details in the `docker-compose`. For details on the container environment look at `Dockerfile`.
