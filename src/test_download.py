@@ -1,8 +1,9 @@
 import joblib
 import json
+import sys
 from huggingface_hub import hf_hub_download
 
-def download_and_load_model(version="1"):
+def download_and_load_model(version):
     # Download model and metadata from HF Hub
     model_path = hf_hub_download(
         repo_id="todor-cmd/sentiment-classifier",
@@ -25,8 +26,14 @@ def download_and_load_model(version="1"):
 
 
 if __name__ == "__main__":
-    classifier, metadata = download_and_load_model()
-    print(metadata)
+    # Get version from command line argument if provided
+    version = sys.argv[1] 
+    
+    print(f"Downloading model version: {version}")
+    classifier, metadata = download_and_load_model(version)
+    print("Successfully downloaded and loaded model!")
+    print(f"Model metadata: {metadata}")
+    
     
 
 
