@@ -1,0 +1,10 @@
+services:
+    model-training:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        volumes:
+            - ./src:/app
+        environment:
+            - PYTHONUNBUFFERED=1 # This allows us to see the output of the model training
+        command: ["python", "train.py", "local-dev"]

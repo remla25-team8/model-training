@@ -1,0 +1,16 @@
+name: remla-model-training
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10.17
+  - huggingface_hub=0.30.2
+  - pandas=2.2.3
+  - scikit-learn=1.6.1
+  - numpy=2.2.5
+  - nltk=3.9.1
+  - pip
+  - pip:
+    - python-dotenv==1.1.0
+    - joblib==1.4.2
+    - git+https://github.com/remla25-team8/lib-ml.git@v0.1.9
