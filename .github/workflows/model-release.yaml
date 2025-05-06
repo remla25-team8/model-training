@@ -1,0 +1,74 @@
+name: Model Training and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to use (e.g., 1.0.0)'
+        required: false
+        type: string
+
+jobs:
+  train-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GH_TOKEN }}
+      
+      - name: Parse version info
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ inputs.version }}"
+          else
+            # GITHUB_REF is like refs/tags/v2.3.5, so strip the first 11 chars
+            VERSION=${GITHUB_REF:11}
+          fi
+          
+          if [ -z "$VERSION" ]; then
+            echo "No version provided. Using 'latest'"
+            VERSION="latest"
+          fi
+          
+          MAJOR=$(echo "$VERSION" | cut -d . -f 1)
+          MINOR=$(echo "$VERSION" | cut -d . -f 2)
+          PATCH=$(echo "$VERSION" | cut -d . -f 3)
+          echo "version=$VERSION" >> $GITHUB_ENV
+          echo "version_major=$MAJOR" >> $GITHUB_ENV
+          echo "version_minor=$MINOR" >> $GITHUB_ENV
+          echo "version_patch=$PATCH" >> $GITHUB_ENV
+      
+      - name: Train and release model
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          # Set image name
+          IMG="ghcr.io/${{github.repository}}"
+          IMG=${IMG@L} # lowercase the image name
+          
+          # Build the image locally
+          docker build -t $IMG:latest .
+          
+          # Run training using the local image
+          docker run --rm \
+            -e HF_TOKEN=$HF_TOKEN \
+            $IMG:latest \
+            python train.py production --version ${{ env.version }}
+      
+      - name: Push model to GitHub Container Registry
+        run: |
+          docker build \
+          --tag $IMG:${{ env.version }} \
+          --tag $IMG:${{ env.version_major }}.${{ env.version_minor }}.latest \
+          --tag $IMG:${{ env.version_major }}.latest \
+          --tag $IMG:latest \
+          .
+          docker push --all-tags $IMG
