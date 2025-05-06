@@ -12,25 +12,45 @@ from huggingface_hub import HfApi, create_repo
 from huggingface_hub import login
 import shutil
 from lib_ml.preprocessor import Preprocessor
+from typing import Tuple
+import numpy as np
 
-#TODO: This should be removed later and replaced by some secret manager
 from dotenv import load_dotenv
 load_dotenv()
 
-# TODO: This function will later all by handled by the lib-ml package.
-def get_train_data():
-    dataset = pd.read_csv('train_data.tsv', delimiter = '\t', quoting = 3)
+
+def get_train_data() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Load and preprocess training data.
+    
+    Returns:
+        Tuple containing:
+            - X_train: Training features 
+            - X_test: Test features
+            - y_train: Training labels
+            - y_test: Test labels
+    """
+    dataset = pd.read_csv('train_data.tsv', delimiter='\t', quoting=3)
     preprocessor = Preprocessor()
 
     reviews = dataset['Review']
     preprocessed_reviews = preprocessor.preprocess_batch(reviews)
     X = preprocessor.vectorize(preprocessed_reviews)
     y = dataset['Liked']
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.20, random_state = 0)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20, random_state=0)
 
     return X_train, X_test, y_train, y_test
 
-def train_model():
+def train_model() -> Tuple[GaussianNB, np.ndarray, float]:
+    """
+    Train a Gaussian Naive Bayes classifier.
+    
+    Returns:
+        Tuple containing:
+            - classifier: Trained GaussianNB model
+            - confusion_matrix: Model confusion matrix
+            - accuracy: Model accuracy score
+    """
     X_train, X_test, y_train, y_test = get_train_data()
 
     classifier = GaussianNB()
@@ -39,13 +59,23 @@ def train_model():
     y_pred = classifier.predict(X_test)
 
     cm = confusion_matrix(y_test, y_pred)
-    acc= accuracy_score(y_test, y_pred)
+    acc = accuracy_score(y_test, y_pred)
 
     return classifier, cm, acc
 
-def upload_model(classifier, cm, acc, version):
-    # Login to Hugging Face Hub
-    # You need to set your HF_TOKEN environment variable or use login() with your token
+def upload_model(classifier: GaussianNB, cm: np.ndarray, acc: float, version: str) -> None:
+    """
+    Upload trained model and metadata to Hugging Face Hub.
+    
+    Args:
+        classifier: Trained GaussianNB model
+        cm: Confusion matrix
+        acc: Model accuracy
+        version: Model version string
+        
+    Raises:
+        ValueError: If HF_TOKEN environment variable is not set
+    """
     hf_token = os.getenv("HF_TOKEN")
     if not hf_token:
         raise ValueError("Please set your Hugging Face token as HF_TOKEN environment variable")
@@ -100,11 +130,9 @@ def upload_model(classifier, cm, acc, version):
             commit_message=f"Add model version {version}"
         )
         
-        
-        
         print(f"Model version {version} uploaded successfully to https://huggingface.co/{repo_name}")
     except Exception as e:
-        print(f"Error during upload: {e}")
+        print(f"Error during upload: {str(e)}")
     finally:
         # Clean up by removing the temporary directory
         shutil.rmtree("model")
