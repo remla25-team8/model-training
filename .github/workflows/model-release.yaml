@@ -46,7 +46,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
       - name: Initialize DVC
-        run: dvc init --no-scm
+        run: dvc init --no-scm --force
       - name: Configure DVC Remote Storage
         run: |
           dvc remote add -d storage s3://remla25-team8/dvcstore
