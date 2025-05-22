@@ -50,8 +50,7 @@ jobs:
       - name: Configure DVC Remote Storage
         run: |
           dvc remote add -d storage s3://remla25-team8/dvcstore
-          dvc remote modify storage aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-          dvc remote modify storage aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          
       - name: Pull dvc data
         run: dvc pull
       - name: Train and release model

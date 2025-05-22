@@ -1,4 +1,5 @@
 [core]
+    no_scm = True
     remote = storage
 ['remote "storage"']
     url = s3://remla25-team8/dvcstore

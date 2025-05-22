@@ -8,14 +8,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Python
+      - name: 设置Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
-      - name: Install
+      - name: Install Dependencies
         run: pip install -r src/requirements.txt
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -24,9 +24,7 @@ jobs:
         run: dvc init --no-scm --force
       - name: Configure DVC Remote Storage
         run: |
-          dvc remote add -d storage s3://my-dvc-bucket/dvcstore
-          dvc remote modify storage aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-          dvc remote modify storage aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          dvc remote add -d storage s3://remla25-team8/dvcstore
       - name: Pull DVC Data
         run: dvc pull
       - name: Run DVC Pipeline
