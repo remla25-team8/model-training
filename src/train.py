@@ -30,7 +30,7 @@ def get_train_data() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
             - y_train: Training labels
             - y_test: Test labels
     """
-    dataset = pd.read_csv('train_data.tsv', delimiter='\t', quoting=3)
+    dataset = pd.read_csv('data/processed/train_data_processed.tsv', delimiter='\t', quoting=3)
     preprocessor = Preprocessor()
 
     reviews = dataset['Review']
@@ -148,6 +148,9 @@ if __name__ == "__main__":
         classifier, cm, acc = train_model()
         print(f"Model training completed with accuracy: {acc}")
         print(f"Confusion matrix: {cm}")
+        # Save the model for run_train.py
+        os.makedirs("model", exist_ok=True)
+        joblib.dump(classifier, "model/sentiment_classifier.joblib")
     elif args.mode == "production":
         print("Running the model training and uploading to the model registry")
         classifier, cm, acc = train_model()
