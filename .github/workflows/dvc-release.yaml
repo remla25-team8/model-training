@@ -1,3 +1,4 @@
+permissions: write-all
 name: DVC Pipeline and Release
 on:
   push:
@@ -38,4 +39,4 @@ jobs:
         with:
           files: model_release.zip
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_Token }}

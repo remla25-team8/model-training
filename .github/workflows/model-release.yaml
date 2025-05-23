@@ -1,5 +1,5 @@
 name: Model Training and Release
-
+permissions: write-all
 on:
   push:
     tags:
