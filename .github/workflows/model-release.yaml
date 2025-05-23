@@ -53,6 +53,10 @@ jobs:
           
       - name: Pull dvc data
         run: dvc pull
+      - name: Verify data files
+        run: |
+          echo "Check data files:"
+          ls -l data/processed/train_data_processed.tsv || echo "Data files missing"
       - name: Train and release model
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
