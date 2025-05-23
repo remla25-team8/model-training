@@ -1,5 +1,5 @@
 name: Model Training and Release
-
+permissions: write-all
 on:
   push:
     tags:
@@ -33,7 +33,40 @@ jobs:
         id: lowercase
         run: |
           echo "owner=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
-      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install Dependencies
+        run: pip install -r src/requirements.txt
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - name: Initialize DVC
+        run: dvc init --no-scm --force
+      - name: Configure DVC Remote Storage
+        run: |
+          dvc remote add -d storage s3://remla25-team8/dvcstore
+      - name: Debug S3 Access
+        run: |
+          echo "Listing S3 bucket contents:"
+          aws s3 ls s3://remla25-team8/dvcstore || echo "Failed to list bucket"
+          echo "Checking bucket existence:"
+          aws s3api head-bucket --bucket remla25-team8 || echo "Bucket inaccessible"
+          echo "Checking specific path:"
+          aws s3 ls s3://remla25-team8/dvcstore/files/md5 || echo "Path inaccessible"
+      - name: Pull dvc data
+        run: |
+          dvc pull --force
+          echo "DVC pull completed, checking data files:"
+          ls -l data/processed/train_data_processed.tsv || echo "Data files missing"
+      - name: Verify data files
+        run: |
+          echo "Checking data files:"
+          ls -l data/processed/train_data_processed.tsv || exit 1
       - name: Train and release model
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
@@ -51,6 +84,8 @@ jobs:
           # Run training using the local image
           docker run --rm \
             --env-file .env \
+            -v $(pwd)/data:/app/data \
+            -e DATA_PATH=/app/data/processed/train_data_processed.tsv \
             $IMG:latest \
             python train.py production --version ${{ env.version }}
           

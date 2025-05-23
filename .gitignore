@@ -4,3 +4,5 @@ settings.json
 *.vscode
 *.pytest_cache
 .secrets
+data/raw/train_data.tsv
+.dvc/config.local
