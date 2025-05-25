@@ -4,7 +4,7 @@ import os
 import json
 import tempfile
 import pandas as pd
-from src.train import upload_model, train_model, get_train_data
+from src.train import upload_model, train_model, get_data_splits
 from huggingface_hub import HfApi
 from pathlib import Path
 from lib_ml.preprocessor import Preprocessor
@@ -12,7 +12,7 @@ from lib_ml.preprocessor import Preprocessor
 def test_model_serialization(tmp_path):
     """Test model can be serialized and deserialized"""
     # Get trained model and preprocessor
-    X_train, X_test, y_train, y_test = get_train_data()
+    X_train, X_test, y_train, y_test = get_data_splits()
     classifier, _, _ = train_model()
     model_path = tmp_path / "model.joblib"
     
@@ -26,7 +26,7 @@ def test_model_serialization(tmp_path):
     assert hasattr(loaded_model, 'predict'), "Loaded model missing predict method"
     
     # Test prediction consistency
-    dataset = pd.read_csv('train_data.tsv', delimiter='\t', quoting=3)
+    dataset = pd.read_csv('data/raw/train_data.tsv', delimiter='\t', quoting=3)
     preprocessor = Preprocessor(max_features=1420)
     reviews = dataset['Review']
     preprocessed_reviews = preprocessor.preprocess_batch(reviews)
@@ -66,7 +66,7 @@ def test_model_metadata():
 def test_model_artifacts():
     """Test model artifacts structure and content"""
     # Get trained model and preprocessor
-    X_train, X_test, y_train, y_test = get_train_data()
+    X_train, X_test, y_train, y_test = get_data_splits()
     
     # Create temporary directory for artifacts
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -106,7 +106,7 @@ def test_model_artifacts():
         assert loaded_metadata == metadata, "Metadata mismatch"
         
         # Test prediction consistency
-        dataset = pd.read_csv('train_data.tsv', delimiter='\t', quoting=3)
+        dataset = pd.read_csv('data/raw/train_data.tsv', delimiter='\t', quoting=3)
         preprocessor = Preprocessor(max_features=1420)
         reviews = dataset['Review']
         preprocessed_reviews = preprocessor.preprocess_batch(reviews)

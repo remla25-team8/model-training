@@ -6,20 +6,20 @@ import os
 
 def test_data_loading():
     """Test that training data loads correctly and has expected columns"""
-    dataset = pd.read_csv('train_data.tsv', delimiter='\t', quoting=3)
+    dataset = pd.read_csv('data/raw/train_data.tsv', delimiter='\t', quoting=3)
     assert 'Review' in dataset.columns
     assert 'Liked' in dataset.columns
     assert len(dataset) > 0
 
 def test_data_balance():
     """Test that data isn't severely imbalanced"""
-    dataset = pd.read_csv('train_data.tsv', delimiter='\t', quoting=3)
+    dataset = pd.read_csv('data/raw/train_data.tsv', delimiter='\t', quoting=3)
     class_balance = dataset['Liked'].value_counts(normalize=True)
     assert 0.3 < class_balance[0] < 0.7  # Neither class should dominate
 
 def test_data_quality():
     """Test data quality and integrity"""
-    dataset = pd.read_csv('train_data.tsv', delimiter='\t', quoting=3)
+    dataset = pd.read_csv('data/raw/train_data.tsv', delimiter='\t', quoting=3)
     
     # Test for missing values
     assert dataset['Review'].isnull().sum() == 0, "Found missing reviews"
@@ -45,7 +45,7 @@ def test_preprocessing_consistency():
 
 def test_feature_distribution():
     """Test that feature distribution is reasonable"""
-    dataset = pd.read_csv('train_data.tsv', delimiter='\t', quoting=3)
+    dataset = pd.read_csv('data/raw/train_data.tsv', delimiter='\t', quoting=3)
     preprocessor = Preprocessor(max_features=1420)
     reviews = dataset['Review']
     preprocessed_reviews = preprocessor.preprocess_batch(reviews)

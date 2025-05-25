@@ -1,7 +1,7 @@
 import json
 import numpy as np
 from datetime import datetime
-from src.train import train_model, get_train_data
+from src.train import train_model, get_data_splits
 import pandas as pd
 from sklearn.metrics import confusion_matrix, accuracy_score
 import logging
@@ -27,12 +27,12 @@ def test_metadata_generation():
 def test_performance_regression():
     """Test for performance regression"""
     # Get baseline performance
-    X_train, X_test, y_train, y_test = get_train_data()
+    X_train, X_test, y_train, y_test = get_data_splits()
     classifier, _, acc = train_model()
     
     # Test on different data splits
     for _ in range(3):  # Test multiple splits
-        X_train, X_test, y_train, y_test = get_train_data()
+        X_train, X_test, y_train, y_test = get_data_splits()
         y_pred = classifier.predict(X_test)
         split_acc = accuracy_score(y_test, y_pred)
         
@@ -42,11 +42,11 @@ def test_performance_regression():
 def test_prediction_monitoring():
     """Test prediction monitoring capabilities"""
     # Get trained model and preprocessor
-    X_train, X_test, y_train, y_test = get_train_data()
+    X_train, X_test, y_train, y_test = get_data_splits()
     classifier, _, _ = train_model()
     
     # Get a fitted preprocessor
-    dataset = pd.read_csv('train_data.tsv', delimiter='\t', quoting=3)
+    dataset = pd.read_csv('data/raw/train_data.tsv', delimiter='\t', quoting=3)
     preprocessor = Preprocessor(max_features=1420)
     reviews = dataset['Review']
     preprocessed_reviews = preprocessor.preprocess_batch(reviews)
@@ -102,7 +102,7 @@ def test_prediction_monitoring():
 
 def test_data_drift_detection():
     """Test data drift detection capabilities"""
-    X_train, X_test, y_train, y_test = get_train_data()
+    X_train, X_test, y_train, y_test = get_data_splits()
     classifier, _, _ = train_model()
     
     # Function to compute basic distribution statistics
@@ -145,7 +145,7 @@ def test_model_versioning():
     assert acc_std < 0.1, "High variance in model performance across versions"
     
     # Test prediction consistency
-    X_train, X_test, y_train, y_test = get_train_data()
+    X_train, X_test, y_train, y_test = get_data_splits()
     base_predictions = models[0].predict(X_test)
     
     for model in models[1:]:

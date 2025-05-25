@@ -19,7 +19,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def get_train_data() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def get_data_splits() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Load and preprocess training data.
     
@@ -51,7 +51,7 @@ def train_model() -> Tuple[GaussianNB, np.ndarray, float]:
             - confusion_matrix: Model confusion matrix
             - accuracy: Model accuracy score
     """
-    X_train, X_test, y_train, y_test = get_train_data()
+    X_train, X_test, y_train, y_test = get_data_splits()
 
     classifier = GaussianNB()
     classifier.fit(X_train, y_train)

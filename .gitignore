@@ -9,3 +9,10 @@ data/raw/train_data.tsv
 .dvc/cache
 .dvc/tmp
 /.dvc/plots/cache
+
+# DVC outputs not needed in repo
+data
+metrics
+models
+release_models
+model_release.zip

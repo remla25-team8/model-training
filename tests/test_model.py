@@ -1,4 +1,4 @@
-from src.train import train_model, get_train_data
+from src.train import train_model, get_data_splits
 import numpy as np
 from sklearn.metrics import roc_auc_score, precision_score, recall_score
 from lib_ml.preprocessor import Preprocessor
@@ -6,7 +6,7 @@ import pandas as pd
 
 def test_train_test_split():
     """Test that train-test split maintains class distribution"""
-    X_train, X_test, y_train, y_test = get_train_data()
+    X_train, X_test, y_train, y_test = get_data_splits()
     train_balance = np.mean(y_train)
     test_balance = np.mean(y_test)
     assert abs(train_balance - test_balance) < 0.1  # Similar balance
@@ -24,7 +24,7 @@ def test_model_training():
 
 def test_model_metrics():
     """Test model performance metrics meet minimum thresholds"""
-    X_train, X_test, y_train, y_test = get_train_data()
+    X_train, X_test, y_train, y_test = get_data_splits()
     classifier, _, acc = train_model()
     
     # Get predictions
@@ -44,11 +44,10 @@ def test_model_metrics():
 def test_model_predictions():
     """Test model makes valid predictions"""
     # Get trained model and preprocessor
-    X_train, X_test, y_train, y_test = get_train_data()
     classifier, _, _ = train_model()
     
     # Get a fitted preprocessor
-    dataset = pd.read_csv('train_data.tsv', delimiter='\t', quoting=3)
+    dataset = pd.read_csv('data/raw/train_data.tsv', delimiter='\t', quoting=3)
     preprocessor = Preprocessor(max_features=1420)
     reviews = dataset['Review']
     preprocessed_reviews = preprocessor.preprocess_batch(reviews)
@@ -81,7 +80,7 @@ def test_model_predictions():
 def test_model_calibration():
     """Test model probability calibration"""
     classifier, _, _ = train_model()
-    X_train, X_test, y_train, y_test = get_train_data()
+    X_train, X_test, y_train, y_test = get_data_splits()
     
     # Get probability predictions
     probas = classifier.predict_proba(X_test)

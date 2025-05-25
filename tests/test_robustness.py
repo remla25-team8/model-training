@@ -1,19 +1,19 @@
 import numpy as np
 import pandas as pd
 from sklearn.metrics import accuracy_score
-from src.train import train_model, get_train_data
+from src.train import train_model, get_data_splits
 from lib_ml.preprocessor import Preprocessor
 import logging
 
 def test_non_determinism():
     """Test model is robust to small input variations"""
     # Get trained model and preprocessor
-    X_train, X_test, y_train, y_test = get_train_data()
+    X_train, X_test, y_train, y_test = get_data_splits()
     classifier, _, _ = train_model()
     preprocessor = Preprocessor(max_features=1420)
     
     # Fit the vectorizer first
-    dataset = pd.read_csv('train_data.tsv', delimiter='\t', quoting=3)
+    dataset = pd.read_csv('data/raw/train_data.tsv', delimiter='\t', quoting=3)
     reviews = dataset['Review']
     preprocessed_reviews = preprocessor.preprocess_batch(reviews)
     preprocessor.vectorize(preprocessed_reviews)  # This fits the vectorizer
@@ -47,8 +47,8 @@ def test_non_determinism():
 def test_data_slices():
     """Test model performance on specific data slices"""
     # Get trained model and preprocessor
-    X_train, X_test, y_train, y_test = get_train_data()
-    dataset = pd.read_csv('train_data.tsv', delimiter='\t', quoting=3)
+    X_train, X_test, y_train, y_test = get_data_splits()
+    dataset = pd.read_csv('data/raw/train_data.tsv', delimiter='\t', quoting=3)
     classifier, _, _ = train_model()
     preprocessor = Preprocessor(max_features=1420)
     
@@ -88,12 +88,12 @@ def test_data_slices():
 def test_adversarial_inputs():
     """Test model robustness against adversarial inputs"""
     # Get trained model and preprocessor
-    X_train, X_test, y_train, y_test = get_train_data()
+    X_train, X_test, y_train, y_test = get_data_splits()
     classifier, _, _ = train_model()
     preprocessor = Preprocessor(max_features=1420)
     
     # Fit the vectorizer first
-    dataset = pd.read_csv('train_data.tsv', delimiter='\t', quoting=3)
+    dataset = pd.read_csv('data/raw/train_data.tsv', delimiter='\t', quoting=3)
     reviews = dataset['Review']
     preprocessed_reviews = preprocessor.preprocess_batch(reviews)
     preprocessor.vectorize(preprocessed_reviews)  # This fits the vectorizer

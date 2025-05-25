@@ -4,14 +4,14 @@ import numpy as np
 from memory_profiler import memory_usage
 from concurrent.futures import ThreadPoolExecutor
 import threading
-from src.train import train_model, get_train_data
+from src.train import train_model, get_data_splits
 from lib_ml.preprocessor import Preprocessor
 from sklearn.naive_bayes import GaussianNB
 import pandas as pd
 
 def get_preprocessor():
     """Helper function to get a preprocessor with consistent configuration"""
-    dataset = pd.read_csv('train_data.tsv', delimiter='\t', quoting=3)
+    dataset = pd.read_csv('data/raw/train_data.tsv', delimiter='\t', quoting=3)
     preprocessor = Preprocessor(max_features=1420)
     reviews = dataset['Review']
     preprocessed_reviews = preprocessor.preprocess_batch(reviews)
@@ -28,7 +28,7 @@ def test_training_time():
 def test_memory_usage():
     """Test model training doesn't exceed memory limits"""
     # Get trained model and preprocessor
-    X_train, X_test, y_train, y_test = get_train_data()
+    X_train, X_test, y_train, y_test = get_data_splits()
     
     # Test training memory usage
     mem_usage = max(memory_usage(train_model))
@@ -39,7 +39,7 @@ def test_memory_usage():
     preprocessor = Preprocessor(max_features=1420)
     
     # Fit the vectorizer first
-    dataset = pd.read_csv('train_data.tsv', delimiter='\t', quoting=3)
+    dataset = pd.read_csv('data/raw/train_data.tsv', delimiter='\t', quoting=3)
     reviews = dataset['Review']
     preprocessed_reviews = preprocessor.preprocess_batch(reviews)
     preprocessor.vectorize(preprocessed_reviews)  # This fits the vectorizer
@@ -55,12 +55,12 @@ def test_memory_usage():
 def test_prediction_latency():
     """Test model predictions are fast enough"""
     # Get trained model and preprocessor
-    X_train, X_test, y_train, y_test = get_train_data()
+    X_train, X_test, y_train, y_test = get_data_splits()
     classifier, _, _ = train_model()
     preprocessor = Preprocessor(max_features=1420)
     
     # Fit the vectorizer first
-    dataset = pd.read_csv('train_data.tsv', delimiter='\t', quoting=3)
+    dataset = pd.read_csv('data/raw/train_data.tsv', delimiter='\t', quoting=3)
     reviews = dataset['Review']
     preprocessed_reviews = preprocessor.preprocess_batch(reviews)
     preprocessor.vectorize(preprocessed_reviews)  # This fits the vectorizer
@@ -87,7 +87,7 @@ def test_prediction_latency():
 def test_cpu_usage():
     """Test CPU usage during training and inference"""
     # Get trained model and preprocessor
-    X_train, X_test, y_train, y_test = get_train_data()
+    X_train, X_test, y_train, y_test = get_data_splits()
     
     def measure_cpu():
         return psutil.Process().cpu_percent(interval=0.1)
@@ -103,7 +103,7 @@ def test_cpu_usage():
     preprocessor = Preprocessor(max_features=1420)
     
     # Fit the vectorizer first
-    dataset = pd.read_csv('train_data.tsv', delimiter='\t', quoting=3)
+    dataset = pd.read_csv('data/raw/train_data.tsv', delimiter='\t', quoting=3)
     reviews = dataset['Review']
     preprocessed_reviews = preprocessor.preprocess_batch(reviews)
     preprocessor.vectorize(preprocessed_reviews)  # This fits the vectorizer
@@ -133,11 +133,11 @@ def test_model_size():
 def test_feature_cost():
     """Test feature extraction cost"""
     # Get trained model and preprocessor
-    X_train, X_test, y_train, y_test = get_train_data()
+    X_train, X_test, y_train, y_test = get_data_splits()
     preprocessor = Preprocessor(max_features=1420)
     
     # Fit the vectorizer first
-    dataset = pd.read_csv('train_data.tsv', delimiter='\t', quoting=3)
+    dataset = pd.read_csv('data/raw/train_data.tsv', delimiter='\t', quoting=3)
     reviews = dataset['Review']
     preprocessed_reviews = preprocessor.preprocess_batch(reviews)
     preprocessor.vectorize(preprocessed_reviews)  # This fits the vectorizer
@@ -157,7 +157,7 @@ def test_feature_cost():
 
 def test_scalability():
     """Test model performance with increasing data size"""
-    X_train, X_test, y_train, y_test = get_train_data()
+    X_train, X_test, y_train, y_test = get_data_splits()
     
     # Test different dataset sizes
     sizes = [0.25, 0.5, 0.75, 1.0]
@@ -180,12 +180,12 @@ def test_scalability():
 def test_concurrent_predictions():
     """Test model performance under concurrent prediction load"""
     # Get trained model and preprocessor
-    X_train, X_test, y_train, y_test = get_train_data()
+    X_train, X_test, y_train, y_test = get_data_splits()
     classifier, _, _ = train_model()
     preprocessor = Preprocessor(max_features=1420)
     
     # Fit the vectorizer first
-    dataset = pd.read_csv('train_data.tsv', delimiter='\t', quoting=3)
+    dataset = pd.read_csv('data/raw/train_data.tsv', delimiter='\t', quoting=3)
     reviews = dataset['Review']
     preprocessed_reviews = preprocessor.preprocess_batch(reviews)
     preprocessor.vectorize(preprocessed_reviews)  # This fits the vectorizer
