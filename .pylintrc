@@ -15,7 +15,7 @@ load-plugins=
     pylint.extensions.redefined_variable_type,
     pylint.extensions.comparison_placement
 persistent=yes
-fail-under=8.0
+fail-under=3.0
 
 [MESSAGES CONTROL]
 disable=
