@@ -30,7 +30,7 @@ def get_train_data() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
             - y_train: Training labels
             - y_test: Test labels
     """
-    dataset = pd.read_csv('train_data.tsv', delimiter='\t', quoting=3)
+    dataset = pd.read_csv('data/processed/train_data_processed.tsv', delimiter='\t', quoting=3)
     preprocessor = Preprocessor()
 
     reviews = dataset['Review']
