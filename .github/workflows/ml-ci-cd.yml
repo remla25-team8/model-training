@@ -122,6 +122,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
+        pip uninstall numpy pandas -y || true
         pip install -r requirements.txt
         pip install -r requirements-dev.txt
         pip install -e .
