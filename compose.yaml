@@ -1,10 +1,22 @@
 services:
-    model-training:
-        build:
-            context: .
-            dockerfile: Dockerfile
-        volumes:
-            - ./src:/app
-        environment:
-            - PYTHONUNBUFFERED=1 # This allows us to see the output of the model training
-        command: ["python", "train.py", "local-dev"]
+  model-training:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./src:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+    command: ["python", "train.py", "local-dev"]
+
+  model-tests:
+    build: .
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+    environment:
+      # - PYTHONPATH=/app/src:/app/tests 
+      - PYTHONPATH=/app
+      - HF_TOKEN=${HF_TOKEN:-""}
+    working_dir: /app
+    command: ["python", "-m", "pytest", "/app/tests", "-v"]
