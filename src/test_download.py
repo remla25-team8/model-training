@@ -1,8 +1,9 @@
-import joblib
 import json
 import sys
+from typing import Any, Dict, Tuple
+
+import joblib
 from huggingface_hub import hf_hub_download
-from typing import Tuple, Dict, Any
 
 
 def download_and_load_model(version: str) -> Tuple[Any, Dict[str, Any]]:

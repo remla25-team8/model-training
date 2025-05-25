@@ -2,15 +2,16 @@ import argparse
 import json
 import os
 import shutil
+
+import joblib
 import numpy as np
 import pandas as pd
-import joblib
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, confusion_matrix
-from sklearn.naive_bayes import GaussianNB
+from dotenv import load_dotenv
 from huggingface_hub import HfApi, create_repo, login
 from lib_ml.preprocessor import Preprocessor
-from dotenv import load_dotenv
+from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.model_selection import train_test_split
+from sklearn.naive_bayes import GaussianNB
 
 load_dotenv()
 
@@ -26,7 +27,9 @@ def get_train_data() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
             - y_train: Training labels
             - y_test: Test labels
     """
-    dataset = pd.read_csv('data/processed/train_data_processed.tsv', delimiter='\t', quoting=3)
+    dataset = pd.read_csv(
+        "data/processed/train_data_processed.tsv", delimiter="\t", quoting=3
+    )
     preprocessor = Preprocessor()
 
     reviews = dataset["Review"]

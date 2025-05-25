@@ -39,7 +39,7 @@ memory-profiler>=0.60.0
 psutil>=5.9.0
 
 # Data manipulation for testing
-pandas>=2.0.0
+pandas>=1.3.0,<2.2.0
 numpy>=1.24.0
 scikit-learn>=1.3.0
 
