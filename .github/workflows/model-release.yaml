@@ -44,7 +44,26 @@ jobs:
         id: lowercase
         run: |
           echo "owner=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
-      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install Dependencies
+        run: pip install -r src/requirements.txt
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - name: Initialize DVC
+        run: dvc init --no-scm --force
+      - name: Configure DVC Remote Storage
+        run: |
+          dvc remote add -d storage s3://remla25-team8/dvcstore
+          
+      - name: Pull dvc data
+        run: dvc pull
       - name: Train and release model
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}

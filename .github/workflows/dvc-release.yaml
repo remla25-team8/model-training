@@ -1,0 +1,41 @@
+name: DVC Pipeline and Release
+on:
+  push:
+    tags:
+      - 'v*'
+jobs:
+  dvc-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 设置Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install Dependencies
+        run: pip install -r src/requirements.txt
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - name: Initialize DVC
+        run: dvc init --no-scm --force
+      - name: Configure DVC Remote Storage
+        run: |
+          dvc remote add -d storage s3://remla25-team8/dvcstore
+      - name: Pull DVC Data
+        run: dvc pull
+      - name: Run DVC Pipeline
+        run: dvc repro
+      - name: Push DVC Data to S3
+        run: dvc push
+      - name: Package Model
+        run: python src/package_model.py
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: model_release.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
