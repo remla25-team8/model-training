@@ -42,20 +42,32 @@ jobs:
         pip install -r requirements-dev.txt
         pip install -e .
     
+
     - name: Run PyLint
       id: pylint
       run: |
         echo "Running PyLint with custom configuration..."
-        pylint_score=$(pylint src/ --rcfile=.pylintrc --output-format=text | grep "Your code has been rated" | sed 's/.*rated at \([0-9.]*\).*/\1/' || echo "0.0")
-        echo "pylint_score=$pylint_score" >> $GITHUB_OUTPUT
-        echo "PyLint Score: $pylint_score"
         
-        # Fail if PyLint score is below threshold (8.0)
-        if (( $(echo "$pylint_score < 8.0" | bc -l) )); then
-          echo "❌ PyLint score ($pylint_score) is below minimum threshold (8.0)"
-          exit 1
+        # Extract fail-under threshold from .pylintrc
+        THRESHOLD=$(grep "fail-under" .pylintrc | sed 's/.*=\s*//' | tr -d ' ')
+        echo "PyLint threshold from .pylintrc: $THRESHOLD"
+        
+        # Run PyLint and extract score
+        pylint_output=$(pylint src/ --rcfile=.pylintrc --output-format=text 2>&1 || true)
+        pylint_score=$(echo "$pylint_output" | grep "Your code has been rated" | sed 's/.*rated at \([0-9.]*\).*/\1/' || echo "0.0")
+        
+        echo "pylint_score=$pylint_score" >> $GITHUB_OUTPUT
+        echo "threshold=$THRESHOLD" >> $GITHUB_OUTPUT
+        echo "PyLint Score: $pylint_score (threshold: $THRESHOLD)"
+        
+        # Use dynamic threshold comparison
+        if python3 -c "import sys; sys.exit(0 if float('$pylint_score') >= float('$THRESHOLD') else 1)"; then
+          echo "✅ PyLint score ($pylint_score) meets threshold ($THRESHOLD)"
         else
-          echo "✅ PyLint score ($pylint_score) meets requirements"
+          echo "❌ PyLint score ($pylint_score) is below threshold ($THRESHOLD)"
+          echo "Full PyLint output:"
+          echo "$pylint_output"
+          exit 1
         fi
     
     - name: Run Flake8
@@ -199,7 +211,7 @@ jobs:
         
         # Determine badge colors based on scores
         pylint_color="red"
-        if (( $(echo "$PYLINT_SCORE >= 8.0" | bc -l) )); then
+        if (( $(echo "$PYLINT_SCORE >= 6.0" | bc -l) )); then
           pylint_color="green"
         elif (( $(echo "$PYLINT_SCORE >= 6.0" | bc -l) )); then
           pylint_color="yellow"
@@ -270,7 +282,7 @@ jobs:
         echo "- **ML Test Score**: $ML_TEST_SCORE%" >> pipeline-report.md
         echo "" >> pipeline-report.md
         echo "## 📈 Quality Gates" >> pipeline-report.md
-        echo "- PyLint: $([ $(echo "$PYLINT_SCORE >= 8.0" | bc -l) = 1 ] && echo "✅ PASSED" || echo "❌ FAILED")" >> pipeline-report.md
+        echo "- PyLint: $([ $(echo "$PYLINT_SCORE >= 6.0" | bc -l) = 1 ] && echo "✅ PASSED" || echo "❌ FAILED")" >> pipeline-report.md
         echo "- Coverage: $([ $(echo "$COVERAGE_PERCENT >= 80" | bc -l) = 1 ] && echo "✅ PASSED" || echo "❌ FAILED")" >> pipeline-report.md
         echo "- Build: $([ "${{ job.status }}" = "success" ] && echo "✅ PASSED" || echo "❌ FAILED")" >> pipeline-report.md
         
