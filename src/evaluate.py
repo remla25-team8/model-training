@@ -14,6 +14,7 @@ def evaluate_model(classifier, X_test, y_test) -> dict:
         "confusion_matrix": cm.tolist()
     }
 
+
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
     args.add_argument("model_file", type=str)

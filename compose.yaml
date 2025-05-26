@@ -15,8 +15,7 @@ services:
       - ./src:/app/src
       - ./tests:/app/tests
     environment:
-      # - PYTHONPATH=/app/src:/app/tests 
       - PYTHONPATH=/app
-      - HF_TOKEN=${HF_TOKEN:-""}
+      - HF_TOKEN
     working_dir: /app
     command: ["python", "-m", "pytest", "/app/tests", "-v"]

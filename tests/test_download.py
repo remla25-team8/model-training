@@ -10,9 +10,9 @@ if __name__ == "__main__":
     if len(sys.argv) != 2:
         print("Usage: python test_download.py <model_version>")
         sys.exit(1)
-        
+
     version = sys.argv[1]
-    
+
     try:
         print(f"Downloading model version: {version}")
         classifier, metadata = download_and_load_model(version)
@@ -21,8 +21,3 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Error downloading/loading model: {str(e)}")
         sys.exit(1)
-    
-    
-
-
-
