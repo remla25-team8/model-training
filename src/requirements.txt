@@ -5,6 +5,12 @@ scikit-learn==1.6.1
 numpy==2.2.5
 python-dotenv==1.1.0
 joblib==1.4.2
+
+pytest==8.2.1
+pytest-cov==4.1.0
+memory-profiler==0.61.0
+psutil==5.9.8
+
 git+https://github.com/remla25-team8/lib-ml.git@v0.1.9
 dvc>=3.0.0
 dvc-gdrive>=3.0.0
