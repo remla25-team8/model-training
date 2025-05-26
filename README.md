@@ -71,3 +71,20 @@ def download_and_load_model(version="1"):
         
     return classifier, metadata
 ```
+
+## Assignment 4
+### 1. DVC setup
+Please refer to [dvcREADME.markdown](dvcREADME.markdown)
+
+### 2. ML Testing
+```
+export PYTHONPATH="$PYTHONPATH:$(pwd)"
+ln -s data/raw/train_data.tsv train_data.tsv
+pytest tests/ -v  # Run all test files
+```
+
+### 3. Linters Checking
+Please refer to  [pylint_custom/linter_check.md](pylint_custom/linter_check.md)
+
+### 4. CI/CD Workflow
+Please refer to  [workflowREADME.md](workflowREADME.md)

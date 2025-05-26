@@ -1,5 +1,8 @@
 name: ML CI/CD Pipeline
 
+permissions:
+  contents: write
+
 on:
   push:
     branches: [ main, develop, xin/feature/custom-pylint ]
