@@ -2,8 +2,9 @@
 jobs=0
 ignore=CVS,.git,__pycache__,.pytest_cache,venv,env,.venv,.env
 ignore-patterns=test_.*\.py,.*_test\.py
-init-hook='import sys; sys.path.append("src")'
+init-hook='import sys; sys.path.append("src"); sys.path.append("pylint_custom")'
 load-plugins=
+    pylint_custom.ml_pylint,
     pylint.extensions.check_elif,
     pylint.extensions.bad_builtin,
     pylint.extensions.docparams,
