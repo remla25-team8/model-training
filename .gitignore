@@ -15,4 +15,5 @@ data
 metrics
 models
 release_models
+release_model
 model_release.zip

@@ -43,7 +43,7 @@ def upload_model(model_zip_path: str, version: str) -> None:
 
         try:
             # Create repository if it doesn't exist
-            if not api.repo_exists(repo_name):
+            if not api.repo_exists(repo_name) or repo_name == "test":
                 create_repo(repo_name, repo_type="model", private=False)
             elif api.revision_exists(repo_name, version):
                 print(f"Version {version} already exists. Please use a different version number.")

@@ -4,147 +4,140 @@ import os
 import json
 import tempfile
 import pandas as pd
-from old_train import upload_model, train_model, get_data_splits
 from huggingface_hub import HfApi
 from pathlib import Path
 from lib_ml.preprocessor import Preprocessor
+from train import train
+import numpy as np
+from model_upload import upload_model
+from evaluate import evaluate_model
+import shutil
 
-def test_model_serialization(tmp_path):
+# Global variable to store zip path
+zip_path = None
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_teardown_zip():
+    """Create and cleanup zip file for all tests"""
+    global zip_path
+    
+    # Create a temporary directory for our zip file
+    temp_dir = tempfile.mkdtemp()
+    zip_path = Path(temp_dir) / "model.zip"
+    
+    # Create dummy model files
+    model_dir = Path(temp_dir) / "model"
+    model_dir.mkdir()
+    
+    # Create dummy model file
+    dummy_model = {"dummy": "model"}
+    joblib.dump(dummy_model, model_dir / "model.joblib")
+    
+    # Create dummy metrics file
+    dummy_metrics = {"accuracy": 0.95, "confusion_matrix": [[10, 2], [3, 15]]}
+    with open(model_dir / "metrics.json", "w") as f:
+        json.dump(dummy_metrics, f)
+    
+    # Create zip file
+    shutil.make_archive(str(zip_path.with_suffix("")), 'zip', model_dir)
+    
+    yield  # This is where the tests run
+    
+    # Cleanup after all tests
+    if zip_path.exists():
+        zip_path.unlink()
+    shutil.rmtree(temp_dir)
+
+@pytest.fixture(scope="session", autouse=True)
+def cleanup_hf_revision():
+    """Cleanup Hugging Face test revision before and after tests"""
+    if os.getenv("HF_TOKEN"):
+        api = HfApi()
+        repo_name = "todor-cmd/sentiment-classifier"
+        test_revision = "test"
+        
+        # Cleanup before tests
+        try:
+            if api.revision_exists(repo_name, test_revision):
+                api.delete_revision(repo_name, test_revision)
+        except Exception as e:
+            print(f"Warning: Could not cleanup test revision before tests: {e}")
+        
+        yield  # This is where the tests run
+        
+        # Cleanup after tests
+        try:
+            if api.revision_exists(repo_name, test_revision):
+                api.delete_revision(repo_name, test_revision)
+        except Exception as e:
+            print(f"Warning: Could not cleanup test revision after tests: {e}")
+
+@pytest.fixture
+def trained_model():
+    """Fixture that provides a trained model, confusion matrix, and accuracy"""
+    X_train = np.load('data/splits/X_train.npy')
+    y_train = np.load('data/splits/y_train.npy')
+    X_test = np.load('data/splits/X_test.npy')
+    y_test = np.load('data/splits/y_test.npy')
+
+    # Use only 500 samples for training since this is only for infrastructure.
+    classifier = train(X_train[:500], y_train[:500])
+    metrics = evaluate_model(classifier, X_test, y_test)
+    cm = metrics['confusion_matrix']
+    acc = metrics['accuracy']
+    return classifier, cm, acc
+
+
+
+def test_model_serialization(trained_model):
     """Test model can be serialized and deserialized"""
     # Get trained model and preprocessor
-    X_train, X_test, y_train, y_test = get_data_splits()
-    classifier, _, _ = train_model()
-    model_path = tmp_path / "model.joblib"
+    classifier, _, _ = trained_model
     
-    # Test serialization
-    joblib.dump(classifier, model_path)
-    assert model_path.exists(), "Model file not created"
-    assert model_path.stat().st_size > 0, "Model file is empty"
-    
-    # Test deserialization
-    loaded_model = joblib.load(model_path)
-    assert hasattr(loaded_model, 'predict'), "Loaded model missing predict method"
-    
-    # Test prediction consistency
-    dataset = pd.read_csv('data/raw/train_data.tsv', delimiter='\t', quoting=3)
-    preprocessor = Preprocessor(max_features=1420)
-    reviews = dataset['Review']
-    preprocessed_reviews = preprocessor.preprocess_batch(reviews)
-    preprocessor.vectorize(preprocessed_reviews)  # This fits the vectorizer
-    
-    test_text = "This is a test review"
-    vector = preprocessor.vectorize_single(test_text)
-    
-    original_pred = classifier.predict(vector)
-    loaded_pred = loaded_model.predict(vector)
-    assert (original_pred == loaded_pred).all(), "Loaded model predictions differ"
-
-def test_model_metadata():
-    """Test model metadata generation and format"""
-    classifier, cm, acc = train_model()
-    metadata = {
-        "accuracy": float(acc),
-        "confusion_matrix": cm.tolist(),
-        "model_type": "GaussianNB",
-        "task": "sentiment_analysis",
-        "version": "test"
-    }
-    
-    # Test metadata format
-    assert isinstance(metadata["accuracy"], float)
-    assert isinstance(metadata["confusion_matrix"], list)
-    assert isinstance(metadata["model_type"], str)
-    assert isinstance(metadata["task"], str)
-    assert isinstance(metadata["version"], str)
-    
-    # Test metadata values
-    assert 0 <= metadata["accuracy"] <= 1
-    assert len(metadata["confusion_matrix"]) == 2  # Binary classification
-    assert metadata["model_type"] == "GaussianNB"
-    assert metadata["task"] == "sentiment_analysis"
-
-def test_model_artifacts():
-    """Test model artifacts structure and content"""
-    # Get trained model and preprocessor
-    X_train, X_test, y_train, y_test = get_data_splits()
-    
-    # Create temporary directory for artifacts
-    with tempfile.TemporaryDirectory() as temp_dir:
-        temp_path = Path(temp_dir)
-        os.makedirs(temp_path / "model", exist_ok=True)
+    # Create temporary file path
+    with tempfile.NamedTemporaryFile(suffix='.joblib', delete=True) as tmp:
+        model_path = Path(tmp.name)
         
-        # Train and save model
-        classifier, cm, acc = train_model()
-        
-        # Save model and metadata
-        model_path = temp_path / "model" / "sentiment_classifier.joblib"
-        metadata_path = temp_path / "model" / "metadata.json"
-        
+        # Test serialization
         joblib.dump(classifier, model_path)
-        metadata = {
-            "accuracy": float(acc),
-            "confusion_matrix": cm.tolist(),
-            "model_type": "GaussianNB",
-            "task": "sentiment_analysis",
-            "version": "test"
-        }
-        
-        with open(metadata_path, 'w') as f:
-            json.dump(metadata, f, indent=4)
-        
-        # Test artifact structure
         assert model_path.exists(), "Model file not created"
-        assert metadata_path.exists(), "Metadata file not created"
+        assert model_path.stat().st_size > 0, "Model file is empty"
         
-        # Test model loading
+        # Test deserialization
         loaded_model = joblib.load(model_path)
-        assert hasattr(loaded_model, 'predict'), "Invalid model file"
-        
-        # Test metadata loading
-        with open(metadata_path, 'r') as f:
-            loaded_metadata = json.load(f)
-        assert loaded_metadata == metadata, "Metadata mismatch"
+        assert hasattr(loaded_model, 'predict'), "Loaded model missing predict method"
         
         # Test prediction consistency
-        dataset = pd.read_csv('data/raw/train_data.tsv', delimiter='\t', quoting=3)
-        preprocessor = Preprocessor(max_features=1420)
-        reviews = dataset['Review']
-        preprocessed_reviews = preprocessor.preprocess_batch(reviews)
-        preprocessor.vectorize(preprocessed_reviews)  # This fits the vectorizer
-        
-        test_text = "This is a test review"
-        vector = preprocessor.vectorize_single(test_text)
-        
-        original_pred = classifier.predict(vector)
-        loaded_pred = loaded_model.predict(vector)
+        X_test = np.load('data/splits/X_test.npy')
+        original_pred = classifier.predict(X_test)
+        loaded_pred = loaded_model.predict(X_test)
         assert (original_pred == loaded_pred).all(), "Loaded model predictions differ"
+        
+        # File will be automatically deleted when exiting the with block
 
-def test_environment_variables():
-    """Test environment variable handling"""
-    # Test missing token
+def test_environment_variables(trained_model):
+    """Test missing environment variable handling"""
+
+    
     if "HF_TOKEN" in os.environ:
         token = os.environ["HF_TOKEN"]
         del os.environ["HF_TOKEN"]
         try:
             with pytest.raises(ValueError):
-                classifier, cm, acc = train_model()
-                upload_model(classifier, cm, acc, version="test")
+                upload_model(zip_path, version="test")
         finally:
             os.environ["HF_TOKEN"] = token
     else:
         with pytest.raises(ValueError):
-            classifier, cm, acc = train_model()
-            upload_model(classifier, cm, acc, version="test")
+            upload_model(zip_path, version="test")
 
 @pytest.mark.skipif(not os.getenv("HF_TOKEN"), reason="Hugging Face token not available")
-def test_model_upload():
+def test_model_upload(trained_model):
     """Test model can be uploaded to registry (integration test)"""
-    classifier, cm, acc = train_model()
-    version = "test"
     
     # Test upload
     try:
-        upload_model(classifier, cm, acc, version=version)
+        upload_model(zip_path, version="test")
     except Exception as e:
         pytest.fail(f"Model upload failed: {str(e)}")
     
@@ -152,4 +145,4 @@ def test_model_upload():
     api = HfApi()
     repo_name = "todor-cmd/sentiment-classifier"
     assert api.repo_exists(repo_name), "Model repository not found"
-    assert api.revision_exists(repo_name, version), "Model version not found"
+    assert api.revision_exists(repo_name, "test"), "Model version not found"

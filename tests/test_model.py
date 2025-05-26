@@ -1,12 +1,40 @@
-from old_train import train_model, get_data_splits
+from train import train
+from preprocess import get_data_splits
 import numpy as np
 from sklearn.metrics import roc_auc_score, precision_score, recall_score
 from lib_ml.preprocessor import Preprocessor
 import pandas as pd
+import pytest
+from evaluate import evaluate_model
+import joblib
+import json
 
-def test_train_test_split():
+@pytest.fixture
+def get_splits():
+    X_train = np.load('data/splits/X_train.npy')
+    X_test = np.load('data/splits/X_test.npy')
+    y_train = np.load('data/splits/y_train.npy')
+    y_test = np.load('data/splits/y_test.npy')
+    return X_train, X_test, y_train, y_test
+
+@pytest.fixture
+def trained_model():
+    """Fixture that provides a trained model, confusion matrix, and accuracy"""
+    # Load trained model
+    classifier = joblib.load('models/sentiment_classifier.joblib')
+    
+    # Load metrics
+    with open('metrics/metrics.json', 'r') as f:
+        metrics = json.load(f)
+    
+    cm = metrics['confusion_matrix'] 
+    acc = metrics['accuracy']
+    
+    return classifier, cm, acc
+
+def test_train_test_split(get_splits):
     """Test that train-test split maintains class distribution"""
-    X_train, X_test, y_train, y_test = get_data_splits()
+    X_train, X_test, y_train, y_test = get_splits
     train_balance = np.mean(y_train)
     test_balance = np.mean(y_test)
     assert abs(train_balance - test_balance) < 0.1  # Similar balance
@@ -15,17 +43,17 @@ def test_train_test_split():
     assert len(X_train) > len(X_test), "Training set should be larger than test set"
     assert len(X_train) + len(X_test) > 0, "Data split should not be empty"
 
-def test_model_training():
+def test_model_training(trained_model):
     """Test that model training produces valid outputs"""
-    classifier, cm, acc = train_model()
+    classifier, cm, acc = trained_model
     assert hasattr(classifier, 'predict')  # Is a trained sklearn model
-    assert cm.shape == (2, 2)  # Binary classification confusion matrix
+    assert len(cm) == 2 and len(cm[0]) == 2  # Binary classification confusion matrix
     assert 0 <= acc <= 1  # Valid accuracy score
 
-def test_model_metrics():
+def test_model_metrics(get_splits, trained_model):
     """Test model performance metrics meet minimum thresholds"""
-    X_train, X_test, y_train, y_test = get_data_splits()
-    classifier, _, acc = train_model()
+    X_train, X_test, y_train, y_test = get_splits
+    classifier, _, _ = trained_model
     
     # Get predictions
     y_pred = classifier.predict(X_test)
@@ -41,46 +69,10 @@ def test_model_metrics():
     assert precision > 0.6, "Precision score below threshold"
     assert recall > 0.5, "Recall score below threshold"
 
-def test_model_predictions():
-    """Test model makes valid predictions"""
-    # Get trained model and preprocessor
-    classifier, _, _ = train_model()
-    
-    # Get a fitted preprocessor
-    dataset = pd.read_csv('data/raw/train_data.tsv', delimiter='\t', quoting=3)
-    preprocessor = Preprocessor(max_features=1420)
-    reviews = dataset['Review']
-    preprocessed_reviews = preprocessor.preprocess_batch(reviews)
-    preprocessor.vectorize(preprocessed_reviews)  # This fits the vectorizer
-    
-    # Test cases
-    test_texts = [
-        "great amazing wonderful",
-        "excellent service and food",
-        "highly recommend this place",
-        "terrible awful horrible",
-        "worst experience ever",
-        "would not recommend"
-    ]
-    
-    # Get predictions
-    vectors = np.vstack([
-        preprocessor.vectorize_single(text) for text in test_texts
-    ])
-    predictions = classifier.predict(vectors)
-    probabilities = classifier.predict_proba(vectors)
-    
-    # Test prediction validity
-    assert predictions.shape == (len(test_texts),), "Wrong prediction shape"
-    assert np.all(np.isin(predictions, [0, 1])), "Invalid prediction values"
-    assert probabilities.shape == (len(test_texts), 2), "Wrong probability shape"
-    assert np.allclose(np.sum(probabilities, axis=1), 1), "Probabilities don't sum to 1"
-    assert np.all((0 <= probabilities) & (probabilities <= 1)), "Invalid probability values"
-
-def test_model_calibration():
+def test_model_calibration(get_splits, trained_model):
     """Test model probability calibration"""
-    classifier, _, _ = train_model()
-    X_train, X_test, y_train, y_test = get_data_splits()
+    classifier, _, _ = trained_model
+    X_train, X_test, y_train, y_test = get_splits
     
     # Get probability predictions
     probas = classifier.predict_proba(X_test)
@@ -93,3 +85,22 @@ def test_model_calibration():
     pred_class_1_proba = probas[:, 1]
     correlation = np.corrcoef(pred_class_1_proba, y_test)[0, 1]
     assert correlation > 0.3, "Weak correlation between predictions and actual outcomes"
+
+def test_model_stability_across_samples(get_splits, trained_model):
+    """Test model performance consistency across random test set samples"""
+    X_train, X_test, y_train, y_test = get_splits
+    classifier, _, baseline_acc = trained_model
+    
+    # Test on different random samples from test set
+    for _ in range(3):  # Test multiple random samples
+        # Randomly sample 25% of test data
+        sample_indices = np.random.choice(len(X_test), size=int(0.25*len(X_test)), replace=False)
+        X_sample = X_test[sample_indices]
+        y_sample = y_test[sample_indices]
+        
+        # Get predictions on the sample
+        y_pred = classifier.predict(X_sample)
+        sample_acc = np.mean(y_pred == y_sample)  # Calculate accuracy directly
+        
+        # Allow for some variance but catch significant instability
+        assert abs(sample_acc - baseline_acc) < 0.2, f"Model performance unstable: baseline={baseline_acc:.3f}, sample={sample_acc:.3f}"

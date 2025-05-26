@@ -2,25 +2,26 @@ import pytest
 import pandas as pd
 import numpy as np
 from lib_ml.preprocessor import Preprocessor
-import os
+from preprocess import preprocess_data
 
-def test_data_loading():
+@pytest.fixture
+def dataset():
+    """Fixture to load the dataset once and reuse across tests"""
+    return pd.read_csv('data/raw/raw_data.tsv', delimiter='\t', quoting=3)
+
+def test_data_loading(dataset):
     """Test that training data loads correctly and has expected columns"""
-    dataset = pd.read_csv('data/raw/train_data.tsv', delimiter='\t', quoting=3)
     assert 'Review' in dataset.columns
     assert 'Liked' in dataset.columns
     assert len(dataset) > 0
 
-def test_data_balance():
+def test_data_balance(dataset):
     """Test that data isn't severely imbalanced"""
-    dataset = pd.read_csv('data/raw/train_data.tsv', delimiter='\t', quoting=3)
     class_balance = dataset['Liked'].value_counts(normalize=True)
     assert 0.3 < class_balance[0] < 0.7  # Neither class should dominate
 
-def test_data_quality():
+def test_data_quality(dataset):
     """Test data quality and integrity"""
-    dataset = pd.read_csv('data/raw/train_data.tsv', delimiter='\t', quoting=3)
-    
     # Test for missing values
     assert dataset['Review'].isnull().sum() == 0, "Found missing reviews"
     assert dataset['Liked'].isnull().sum() == 0, "Found missing labels"
@@ -43,13 +44,9 @@ def test_preprocessing_consistency():
     processed_twice = preprocessor.preprocess(sample_text)
     assert processed_once == processed_twice
 
-def test_feature_distribution():
+def test_feature_distribution(dataset):
     """Test that feature distribution is reasonable"""
-    dataset = pd.read_csv('data/raw/train_data.tsv', delimiter='\t', quoting=3)
-    preprocessor = Preprocessor(max_features=1420)
-    reviews = dataset['Review']
-    preprocessed_reviews = preprocessor.preprocess_batch(reviews)
-    X = preprocessor.vectorize(preprocessed_reviews)
+    X, _ = preprocess_data(dataset)
     
     # Test feature shape
     assert X.shape[0] == len(dataset)  # Same number of samples
