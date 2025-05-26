@@ -1,0 +1,296 @@
+name: ML CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  PYTHON_VERSION: '3.10'
+  CACHE_VERSION: v1
+  
+jobs:
+  # Job 1: Code Quality & Linting
+  code-quality:
+    name: Code Quality & Linting
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+        pip install -e .
+    
+
+    - name: Run PyLint
+      id: pylint
+      run: |
+        echo "Running PyLint with custom configuration..."
+        
+        # Extract fail-under threshold from .pylintrc
+        THRESHOLD=$(grep "fail-under" .pylintrc | sed 's/.*=\s*//' | tr -d ' ')
+        echo "PyLint threshold from .pylintrc: $THRESHOLD"
+        
+        # Run PyLint and extract score
+        pylint_output=$(pylint src/ --rcfile=.pylintrc --output-format=text 2>&1 || true)
+        pylint_score=$(echo "$pylint_output" | grep "Your code has been rated" | sed 's/.*rated at \([0-9.]*\).*/\1/' || echo "0.0")
+        
+        echo "pylint_score=$pylint_score" >> $GITHUB_OUTPUT
+        echo "threshold=$THRESHOLD" >> $GITHUB_OUTPUT
+        echo "PyLint Score: $pylint_score (threshold: $THRESHOLD)"
+        
+        # Use dynamic threshold comparison
+        if python3 -c "import sys; sys.exit(0 if float('$pylint_score') >= float('$THRESHOLD') else 1)"; then
+          echo "✅ PyLint score ($pylint_score) meets threshold ($THRESHOLD)"
+        else
+          echo "❌ PyLint score ($pylint_score) is below threshold ($THRESHOLD)"
+          echo "Full PyLint output:"
+          echo "$pylint_output"
+          exit 1
+        fi
+    
+    - name: Run Flake8
+      run: |
+        echo "Running Flake8 with custom configuration..."
+        flake8 src/ --config=.flake8
+        echo "✅ Flake8 passed"
+    
+    - name: Run Bandit Security Linter
+      run: |
+        echo "Running Bandit security analysis..."
+        bandit -r src/ -f json -o bandit-report.json || true
+        bandit -r src/ --severity-level medium
+        echo "✅ Bandit security check passed"
+    
+    - name: Upload linting reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: linting-reports
+        path: |
+          bandit-report.json
+    
+    outputs:
+      pylint_score: ${{ steps.pylint.outputs.pylint_score }}
+
+  # Job 2: ML Testing & Coverage
+  ml-testing:
+    name: ML Testing & Coverage Analysis
+    runs-on: ubuntu-latest
+    needs: code-quality
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip uninstall numpy pandas -y || true
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+        pip install -e .
+    
+    - name: Prepare test environment
+      run: |
+        echo "Setting up test environment..."
+        python scripts/create_test_data.py
+    
+    - name: Run Tests with Coverage
+      id: testing
+      run: |
+        echo "Running comprehensive ML test suite..."
+        
+        coverage run --source=src -m pytest tests/ -v \
+          --junitxml=test-results.xml \
+          --tb=short
+        
+        coverage report --show-missing
+        coverage xml -o coverage.xml
+        coverage html -d htmlcov/
+        
+        coverage_percent=$(coverage report | grep TOTAL | awk '{print $4}' | sed 's/%//' || echo "0")
+        echo "coverage_percent=$coverage_percent" >> $GITHUB_OUTPUT
+        echo "Test Coverage: $coverage_percent%"
+        
+        if (( $(echo "$coverage_percent < 80" | bc -l) )); then
+          echo "❌ Test coverage ($coverage_percent%) is below minimum threshold (80%)"
+          exit 1
+        else
+          echo "✅ Test coverage ($coverage_percent%) meets requirements"
+        fi
+    
+    - name: Calculate ML Test Score
+      id: ml_test_score
+      run: |
+        echo "Calculating ML Test Score..."
+        python scripts/calculate_ml_test_score.py --output-json ml-test-score.json
+        
+        ml_test_score=$(python -c "import json; print(json.load(open('ml-test-score.json'))['percentage'])" || echo "0")
+        echo "ml_test_score=$ml_test_score" >> $GITHUB_OUTPUT
+        echo "ML Test Score: $ml_test_score%"
+        
+        python scripts/calculate_ml_test_score.py --verbose
+    
+    - name: Upload test artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results
+        path: |
+          test-results.xml
+          coverage.xml
+          htmlcov/
+          ml-test-score.json
+    
+    outputs:
+      coverage_percent: ${{ steps.testing.outputs.coverage_percent }}
+      ml_test_score: ${{ steps.ml_test_score.outputs.ml_test_score }}
+
+  # Job 3: Update README with Metrics
+  update-readme:
+    name: Update README with Metrics
+    runs-on: ubuntu-latest
+    needs: [code-quality, ml-testing]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+    
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Update README badges and metrics
+      env:
+        PYLINT_SCORE: ${{ needs.code-quality.outputs.pylint_score }}
+        COVERAGE_PERCENT: ${{ needs.ml-testing.outputs.coverage_percent }}
+        ML_TEST_SCORE: ${{ needs.ml-testing.outputs.ml_test_score }}
+      run: |
+        echo "Updating README with latest metrics..."
+        
+        # Determine badge colors based on scores
+        pylint_color="red"
+        if (( $(echo "$PYLINT_SCORE >= 6.0" | bc -l) )); then
+          pylint_color="green"
+        elif (( $(echo "$PYLINT_SCORE >= 6.0" | bc -l) )); then
+          pylint_color="yellow"
+        fi
+        
+        coverage_color="red"
+        if (( $(echo "$COVERAGE_PERCENT >= 80" | bc -l) )); then
+          coverage_color="green"
+        elif (( $(echo "$COVERAGE_PERCENT >= 60" | bc -l) )); then
+          coverage_color="yellow"
+        fi
+        
+        ml_test_color="red"
+        if (( $(echo "$ML_TEST_SCORE >= 80" | bc -l) )); then
+          ml_test_color="green"
+        elif (( $(echo "$ML_TEST_SCORE >= 60" | bc -l) )); then
+          ml_test_color="yellow"
+        fi
+        
+        # Update README with badges
+        python scripts/update_readme_badges.py \
+          --pylint-score "$PYLINT_SCORE" \
+          --pylint-color "$pylint_color" \
+          --coverage-percent "$COVERAGE_PERCENT" \
+          --coverage-color "$coverage_color" \
+          --ml-test-score "$ML_TEST_SCORE" \
+          --ml-test-color "$ml_test_color"
+    
+    - name: Commit README updates
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        if git diff --quiet README.md; then
+          echo "No changes to README.md"
+        else
+          echo "Committing updated README.md with latest metrics"
+          git add README.md
+          git commit -m "🤖 Auto-update metrics badges [skip ci]"
+          git push
+        fi
+
+  # Job 4: Generate Reports
+  generate-reports:
+    name: Generate Reports
+    runs-on: ubuntu-latest
+    needs: [code-quality, ml-testing]
+    if: always()
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+    
+    - name: Generate comprehensive report
+      env:
+        PYLINT_SCORE: ${{ needs.code-quality.outputs.pylint_score }}
+        COVERAGE_PERCENT: ${{ needs.ml-testing.outputs.coverage_percent }}
+        ML_TEST_SCORE: ${{ needs.ml-testing.outputs.ml_test_score }}
+      run: |
+        echo "# 📊 ML CI/CD Pipeline Report" > pipeline-report.md
+        echo "" >> pipeline-report.md
+        echo "## 🏆 Metrics Summary" >> pipeline-report.md
+        echo "- **PyLint Score**: $PYLINT_SCORE/10" >> pipeline-report.md
+        echo "- **Test Coverage**: $COVERAGE_PERCENT%" >> pipeline-report.md
+        echo "- **ML Test Score**: $ML_TEST_SCORE%" >> pipeline-report.md
+        echo "" >> pipeline-report.md
+        echo "## 📈 Quality Gates" >> pipeline-report.md
+        echo "- PyLint: $([ $(echo "$PYLINT_SCORE >= 6.0" | bc -l) = 1 ] && echo "✅ PASSED" || echo "❌ FAILED")" >> pipeline-report.md
+        echo "- Coverage: $([ $(echo "$COVERAGE_PERCENT >= 80" | bc -l) = 1 ] && echo "✅ PASSED" || echo "❌ FAILED")" >> pipeline-report.md
+        echo "- Build: $([ "${{ job.status }}" = "success" ] && echo "✅ PASSED" || echo "❌ FAILED")" >> pipeline-report.md
+        
+        cat pipeline-report.md
+    
+    - name: Upload comprehensive report
+      uses: actions/upload-artifact@v4
+      with:
+        name: pipeline-report
+        path: pipeline-report.md

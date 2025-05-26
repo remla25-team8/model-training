@@ -6,3 +6,7 @@ settings.json
 .secrets
 data/raw/train_data.tsv
 .dvc/config.local
+.dvc/cache/
+.dvc/tmp/
+configs/
+metrics/

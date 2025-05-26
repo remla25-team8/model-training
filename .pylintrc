@@ -1,0 +1,77 @@
+[MAIN]
+jobs=0
+ignore=CVS,.git,__pycache__,.pytest_cache,venv,env,.venv,.env
+ignore-patterns=test_.*\.py,.*_test\.py
+init-hook='import sys; sys.path.append("src")'
+load-plugins=
+    pylint.extensions.check_elif,
+    pylint.extensions.bad_builtin,
+    pylint.extensions.docparams,
+    pylint.extensions.for_any_all,
+    pylint.extensions.set_membership,
+    pylint.extensions.code_style,
+    pylint.extensions.overlapping_exceptions,
+    pylint.extensions.typing,
+    pylint.extensions.redefined_variable_type,
+    pylint.extensions.comparison_placement
+persistent=yes
+fail-under=6.0
+
+[MESSAGES CONTROL]
+disable=
+    raw-checker-failed,
+    bad-inline-option,
+    locally-disabled,
+    file-ignored,
+    suppressed-message,
+    useless-suppression,
+    deprecated-pragma,
+    use-symbolic-message-instead,
+    too-few-public-methods,
+    too-many-arguments,
+    too-many-locals,
+    too-many-branches,
+    too-many-statements,
+    invalid-name,
+    wrong-import-position
+
+[BASIC]
+good-names=
+    i,j,k,
+    X,y,
+    df,
+    ax,fig,
+    lr,
+    cv,
+    nn,rf,dt,nb,svm,
+    f1,
+    tp,tn,fp,fn
+
+bad-names=data,input,list,dict
+function-naming-style=snake_case
+variable-naming-style=snake_case
+const-naming-style=UPPER_CASE
+class-naming-style=PascalCase
+module-naming-style=snake_case
+
+[FORMAT]
+max-line-length=88
+indent-after-paren=4
+indent-string='    '
+max-module-lines=1000
+
+[DESIGN]
+max-args=10
+max-attributes=15
+max-bool-expr=5
+max-branches=15
+max-locals=20
+max-parents=7
+max-public-methods=25
+max-returns=6
+max-statements=60
+min-public-methods=1
+
+[REPORTS]
+reports=no
+score=yes

@@ -1,4 +1,9 @@
 # Model Training
+
+<!-- BADGES:START -->
+![PyLint](https://img.shields.io/badge/PyLint-8.5/10-green)
+<!-- BADGES:END -->
+
 This repository will contain the ML training pipeline.
 - Library dependencies can be seen in `requirements.txt` and `environment.yaml`.
 - Data is preproccessed via our `lib-ml` library.
