@@ -1,7 +1,9 @@
 # Model Training
 
 <!-- BADGES:START -->
-![PyLint](https://img.shields.io/badge/PyLint-8.5/10-green)
+![PyLint](https://img.shields.io/badge/PyLint-10.0/10-green)
+![Coverage](https://img.shields.io/badge/Coverage-30%-red)
+![ML%20Test%20Score](https://img.shields.io/badge/ML%20Test%20Score-0%-red)
 <!-- BADGES:END -->
 
 This repository will contain the ML training pipeline.
@@ -71,3 +73,21 @@ def download_and_load_model(version="1"):
         
     return classifier, metadata
 ```
+
+## Assignment 4
+### 1. DVC setup
+Please refer to [docs/DVC.md](docs/DVC.md)
+
+### 2. ML Testing
+```
+export PYTHONPATH="$PYTHONPATH:$(pwd)"
+ln -s data/raw/train_data.tsv train_data.tsv
+pytest tests/ -v  # Run all test files
+```
+
+### 3. Linters Checking
+Please refer to  [docs/linters.md](docs/linters.md)
+
+### 4. CI/CD Workflow
+Please refer to  [docs/workflow.md](docs/workflow.md)
+> Always run git pull before git commit to apply the automatic updated readme file badge.

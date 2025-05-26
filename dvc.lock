@@ -5,8 +5,8 @@ stages:
     deps:
     - path: src/download_data.py
       hash: md5
-      md5: 6f099338a20a2488f4ce7a28af79f51f
-      size: 329
+      md5: 7db8400da885f6b334fa06173c97f635
+      size: 478
     outs:
     - path: data/processed/train_data_processed.tsv
       hash: md5
@@ -21,16 +21,16 @@ stages:
       size: 54686
     - path: src/run_train.py
       hash: md5
-      md5: 839b88d2461f7304ed9fe5432d87217d
-      size: 207
+      md5: 659124de075402d85fd0979638118a3a
+      size: 546
     - path: src/train.py
       hash: md5
-      md5: 1fa48fcca66a4b8b58e7562e09203019
-      size: 5491
+      md5: 3b86b5ec76e1d30f14e517240f9ff9f9
+      size: 6001
     outs:
     - path: models/sentiment_classifier.joblib
       hash: md5
-      md5: 35c03fcc854b213ba0d3926b0bce7d09
+      md5: 03138659cb8fe377321cfe7e363f7cc1
       size: 46215
   evaluate:
     cmd: python src/evaluate.py models/sentiment_classifier.joblib data/processed/train_data_processed.tsv
@@ -42,12 +42,12 @@ stages:
       size: 54686
     - path: models/sentiment_classifier.joblib
       hash: md5
-      md5: 35c03fcc854b213ba0d3926b0bce7d09
+      md5: 03138659cb8fe377321cfe7e363f7cc1
       size: 46215
     - path: src/evaluate.py
       hash: md5
-      md5: be2961c1bfa43a1ed24da38185b2e217
-      size: 956
+      md5: 0f32efc990e671acfd492ca6e459e990
+      size: 1373
     outs:
     - path: metrics/metrics.json
       hash: md5
