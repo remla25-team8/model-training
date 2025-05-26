@@ -1,3 +1,8 @@
+"""
+This script packages the trained sentiment classifier model 
+and its metrics into a release directory, 
+and creates a zip archive for distribution.
+"""
 import os
 import shutil
 
