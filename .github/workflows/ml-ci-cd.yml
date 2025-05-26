@@ -2,7 +2,7 @@ name: ML CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, xin/feature/custom-pylint ]
   pull_request:
     branches: [ main ]
 
