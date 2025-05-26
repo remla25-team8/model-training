@@ -2,20 +2,6 @@
 
 The implementation includes automated testing, linting, metrics calculation, and README badge updates.
 
-## Quick Setup
-
-```bash
-# Clone and checkout PR branch
-git clone https://github.com/remla25-team8/model-training.git
-cd model-training
-git fetch origin
-git checkout feature/ci-cd-pipeline-setup
-git pull origin feature/ci-cd-pipeline-setup
-
-# Verify environment
-python --version  # Requires >= 3.8
-```
-
 ## Component Validation
 
 ### 1. File Structure Check
@@ -92,7 +78,7 @@ grep -q "PyLint.*8.5" TEST_README.md && echo "PASS: Badge update works"
 
 # Cleanup
 rm -f test_results.json TEST_README.md
-rm -rf data/
+# rm -rf data/ # for consistency with the main branch we don't do this
 ```
 
 ## Team Integration Compatibility

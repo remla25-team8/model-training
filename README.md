@@ -76,7 +76,7 @@ def download_and_load_model(version="1"):
 
 ## Assignment 4
 ### 1. DVC setup
-Please refer to [dvcREADME.markdown](dvcREADME.markdown)
+Please refer to [docs/DVC.md](docs/DVC.md)
 
 ### 2. ML Testing
 ```
@@ -86,7 +86,8 @@ pytest tests/ -v  # Run all test files
 ```
 
 ### 3. Linters Checking
-Please refer to  [pylint_custom/linter_check.md](pylint_custom/linter_check.md)
+Please refer to  [docs/linters.md](docs/linters.md)
 
 ### 4. CI/CD Workflow
-Please refer to  [workflowREADME.md](workflowREADME.md)
+Please refer to  [docs/workflow.md](docs/workflow.md)
+> Always run git pull before git commit to apply the automatic updated readme file badge.
