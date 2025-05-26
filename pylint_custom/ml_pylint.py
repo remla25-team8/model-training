@@ -3,6 +3,7 @@ from astroid import nodes
 
 is_verbose = False  # Set to True for verbose output
 
+
 class MLSpecificSmellsChecker(BaseChecker):
     name = 'ml-smells'
     priority = -1

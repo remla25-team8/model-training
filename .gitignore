@@ -6,7 +6,14 @@ settings.json
 .secrets
 data/raw/train_data.tsv
 .dvc/config.local
-.dvc/cache/
-.dvc/tmp/
-configs/
-metrics/
+.dvc/cache
+.dvc/tmp
+/.dvc/plots/cache
+
+# DVC outputs not needed in repo
+data
+metrics
+models
+release_models
+release_model
+model_release.zip
