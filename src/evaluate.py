@@ -5,6 +5,7 @@ import numpy as np
 import argparse
 import os
 
+
 def evaluate_model(classifier, X_test, y_test) -> dict:
     y_pred = classifier.predict(X_test)
     accuracy = accuracy_score(y_test, y_pred)

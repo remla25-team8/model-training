@@ -189,7 +189,7 @@ Examples:
   python update_readme_badges.py --pylint-score 8.5 --pylint-color green
   python update_readme_badges.py --coverage-percent 85 --coverage-color yellow
   python update_readme_badges.py --ml-test-score 75 --ml-test-color green
-    
+
   # Update all badges at once
   python update_readme_badges.py \\
     --pylint-score 8.5 --pylint-color green \\

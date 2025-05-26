@@ -5,13 +5,14 @@ import joblib
 import os
 import numpy as np
 
-def train(X_train, Y_train, model_version = None, sample_weight = None):
+
+def train(X_train, Y_train, model_version=None, sample_weight=None):
     # Check if the model version is provided, in which case we don't train from scratch
     if model_version is None:
         model = GaussianNB()
     else:
         model = download_and_load_model(model_version)
-    
+
     # Check if the sample weight is provided, in which case we use it to train the model
     if sample_weight is not None:
         sample_weight = np.load(sample_weight)
@@ -20,7 +21,7 @@ def train(X_train, Y_train, model_version = None, sample_weight = None):
         model.fit(X_train, Y_train)
 
     return model
-    
+
 
 if __name__ == '__main__':
     args = argparse.ArgumentParser()
@@ -40,4 +41,3 @@ if __name__ == '__main__':
     # Create the output directory if it doesn't exist and save the model
     os.makedirs(args.output_dir, exist_ok=True)
     joblib.dump(model, os.path.join(args.output_dir, args.output_filename))
-    

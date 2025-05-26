@@ -6,6 +6,7 @@ import numpy as np
 import os
 import argparse
 
+
 def preprocess_data(dataset: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
     preprocessor = Preprocessor()
 
@@ -16,13 +17,17 @@ def preprocess_data(dataset: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
     return X, y
 
-def get_data_splits(raw_data_path: str, test_size: float = 0.20, random_state: int = 0) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+
+def get_data_splits(
+    raw_data_path: str,
+    test_size: float = 0.20,
+    random_state: int = 0
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Load and preprocess training data.
-    
     Returns:
         Tuple containing:
-            - X_train: Training features 
+            - X_train: Training features
             - X_test: Test features
             - y_train: Training labels
             - y_test: Test labels
@@ -31,9 +36,15 @@ def get_data_splits(raw_data_path: str, test_size: float = 0.20, random_state: i
 
     X, y = preprocess_data(dataset)
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X,
+        y,
+        test_size=test_size,
+        random_state=random_state
+    )
 
     return X_train, X_test, y_train, y_test
+
 
 if __name__ == '__main__':
     # Parse command line arguments, these are the params for dvc pipeline to pass.
@@ -42,7 +53,6 @@ if __name__ == '__main__':
     args.add_argument("--test_size", type=float, required=False, default=0.20)
     args.add_argument("--random_state", type=int, required=False, default=0)
     args.add_argument("--data_splits_dir", type=str, required=False, default="data/splits")
-    
     args = args.parse_args()
 
     # Get the data splits
@@ -50,10 +60,7 @@ if __name__ == '__main__':
 
     # Save the data splits to the data splits directory
     os.makedirs(args.data_splits_dir, exist_ok=True)
-    
     np.save(os.path.join(args.data_splits_dir, 'X_train.npy'), X_train)
     np.save(os.path.join(args.data_splits_dir, 'X_test.npy'), X_test)
     np.save(os.path.join(args.data_splits_dir, 'y_train.npy'), y_train)
     np.save(os.path.join(args.data_splits_dir, 'y_test.npy'), y_test)
-
-

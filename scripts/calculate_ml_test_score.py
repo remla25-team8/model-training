@@ -153,7 +153,7 @@ def calculate_ml_test_score(verbose: bool = False) -> Dict:
 
         if verbose:
             print(f"\n📋 {category_info['name']}")
-            print(f"   Score: {achieved}/{max_score} ({achieved/max_score*100:.1f}%)")
+            print(f"   Score: {achieved}/{max_score} ({achieved / max_score * 100:.1f}%)")
             print(f"   Tests implemented: {implemented_count}/{total_tests}")
             for test in implemented_tests[category_name]:
                 print(f"   ✅ {test}")
