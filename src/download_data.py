@@ -1,7 +1,6 @@
 """
 Downloads a TSV dataset from Google Drive, reads it, and saves it to a new file.
 Usage: python download_data.py <input_file> <output_file>
-This file 
 """
 import sys
 

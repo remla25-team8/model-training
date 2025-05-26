@@ -1,5 +1,5 @@
 """
-This module provides functionality to 
+This module provides functionality to
 evaluate a trained sentiment analysis model
 using a provided dataset and outputs evaluation metrics as JSON.
 """
@@ -15,7 +15,7 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 
 def evaluate_model(model_file: str, data_file: str, output_file: str) -> None:
     """
-    Evaluate a trained model on a given dataset 
+    Evaluate a trained model on a given dataset
     and save metrics to a JSON file.
 
     Args:
@@ -40,4 +40,3 @@ def evaluate_model(model_file: str, data_file: str, output_file: str) -> None:
 if __name__ == "__main__":
     model_path, data_path, output_path = sys.argv[1:4]
     evaluate_model(model_path, data_path, output_path)
-    
