@@ -85,3 +85,14 @@ stages:
       hash: md5
       md5: 102f1f4193e0bdebdd6cce7f13e0a839
       size: 54686
+  test_data:
+    cmd: pytest tests/test_data.py
+    deps:
+    - path: data/raw/raw_data.tsv
+      hash: md5
+      md5: 102f1f4193e0bdebdd6cce7f13e0a839
+      size: 54686
+    - path: tests/test_data.py
+      hash: md5
+      md5: 95ddbfd2bbc1fe99946147e2d8d14354
+      size: 2990
