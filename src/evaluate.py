@@ -1,28 +1,33 @@
-import pandas as pd
 import joblib
 import json
 from sklearn.metrics import accuracy_score, confusion_matrix
-import sys
-from lib_ml.preprocessor import Preprocessor
 import numpy as np
+import argparse
+import os
 
-def evaluate_model(model_file: str, data_file: str, output_file: str) -> None:
-    dataset = pd.read_csv(data_file, delimiter='\t', quoting=3)
-    preprocessor = Preprocessor()
-    reviews = dataset['Review']
-    X = preprocessor.vectorize(preprocessor.preprocess_batch(reviews))
-    y = dataset['Liked']
-    classifier = joblib.load(model_file)
-    y_pred = classifier.predict(X)
-    accuracy = accuracy_score(y, y_pred)
-    cm = confusion_matrix(y, y_pred)
-    metrics = {
+def evaluate_model(classifier, X_test, y_test) -> dict:
+    y_pred = classifier.predict(X_test)
+    accuracy = accuracy_score(y_test, y_pred)
+    cm = confusion_matrix(y_test, y_pred)
+    return {
         "accuracy": float(accuracy),
         "confusion_matrix": cm.tolist()
     }
-    with open(output_file, 'w') as f:
-        json.dump(metrics, f, indent=4)
 
 if __name__ == "__main__":
-    model_file, data_file, output_file = sys.argv[1:4]
-    evaluate_model(model_file, data_file, output_file)
+    args = argparse.ArgumentParser()
+    args.add_argument("model_file", type=str)
+    args.add_argument("X_test", type=str)
+    args.add_argument("y_test", type=str)
+    args.add_argument("--output_filename", type=str, required=False, default="metrics.json")
+    args.add_argument("--output_dir", type=str, required=False, default="metrics")
+    args = args.parse_args()
+
+    classifier = joblib.load(args.model_file)
+    X_test = np.load(args.X_test)
+    y_test = np.load(args.y_test)
+    metrics = evaluate_model(classifier, X_test, y_test)
+
+    os.makedirs(args.output_dir, exist_ok=True)
+    with open(os.path.join(args.output_dir, args.output_filename), 'w') as f:
+        json.dump(metrics, f, indent=4)

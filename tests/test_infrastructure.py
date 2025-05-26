@@ -4,7 +4,7 @@ import os
 import json
 import tempfile
 import pandas as pd
-from src.train import upload_model, train_model, get_data_splits
+from old_train import upload_model, train_model, get_data_splits
 from huggingface_hub import HfApi
 from pathlib import Path
 from lib_ml.preprocessor import Preprocessor

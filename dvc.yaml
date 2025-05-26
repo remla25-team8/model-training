@@ -1,23 +1,34 @@
 stages:
-  prepare:
-    cmd: python src/download_data.py data/raw/train_data.tsv data/processed/train_data_processed.tsv
+  get_data:
+    cmd: python src/download_data.py 
     deps:
       - src/download_data.py
     outs:
-      - data/processed/train_data_processed.tsv
-  train:
-    cmd: python src/run_train.py data/processed/train_data_processed.tsv models/sentiment_classifier.joblib
+      - data/raw/raw_data.tsv
+  prepare:
+    cmd: python src/preprocess.py data/raw/raw_data.tsv
     deps:
-      - data/processed/train_data_processed.tsv
-      - src/run_train.py
+      - data/raw/raw_data.tsv
+      - src/preprocess.py
+    outs:
+      - data/splits/X_train.npy
+      - data/splits/X_test.npy
+      - data/splits/y_train.npy
+      - data/splits/y_test.npy
+  train:
+    cmd: python src/train.py data/splits/X_train.npy data/splits/y_train.npy
+    deps:
+      - data/splits/X_train.npy
+      - data/splits/y_train.npy
       - src/train.py
     outs:
       - models/sentiment_classifier.joblib
   evaluate:
-    cmd: python src/evaluate.py models/sentiment_classifier.joblib data/processed/train_data_processed.tsv metrics/metrics.json
+    cmd: python src/evaluate.py models/sentiment_classifier.joblib data/splits/X_test.npy data/splits/y_test.npy
     deps:
       - models/sentiment_classifier.joblib
-      - data/processed/train_data_processed.tsv
+      - data/splits/X_test.npy
+      - data/splits/y_test.npy
       - src/evaluate.py
     metrics:
       - metrics/metrics.json

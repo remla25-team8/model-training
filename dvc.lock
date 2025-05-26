@@ -1,55 +1,87 @@
 schema: '2.0'
 stages:
   prepare:
-    cmd: python src/download_data.py data/raw/train_data.tsv data/processed/train_data_processed.tsv
+    cmd: python src/preprocess.py data/raw/raw_data.tsv
     deps:
-    - path: src/download_data.py
+    - path: data/raw/raw_data.tsv
       hash: md5
-      md5: 6f099338a20a2488f4ce7a28af79f51f
-      size: 329
+      md5: 102f1f4193e0bdebdd6cce7f13e0a839
+      size: 54686
+    - path: src/preprocess.py
+      hash: md5
+      md5: eb9066228118cafbb7b46a152ffb3a39
+      size: 2138
     outs:
-    - path: data/processed/train_data_processed.tsv
+    - path: data/splits/X_test.npy
       hash: md5
-      md5: 102f1f4193e0bdebdd6cce7f13e0a839
-      size: 54686
+      md5: d2884824a03d158e5494d4a1a7aedf34
+      size: 2044928
+    - path: data/splits/X_train.npy
+      hash: md5
+      md5: 50cdc707778354daeaf330f251a752f7
+      size: 8179328
+    - path: data/splits/y_test.npy
+      hash: md5
+      md5: 600ef4282a577f6dc3224d76026f1921
+      size: 1568
+    - path: data/splits/y_train.npy
+      hash: md5
+      md5: f7133ef9eab9657fd8847d02553b6d21
+      size: 5888
   train:
-    cmd: python src/run_train.py data/processed/train_data_processed.tsv models/sentiment_classifier.joblib
+    cmd: python src/train.py data/splits/X_train.npy data/splits/y_train.npy
     deps:
-    - path: data/processed/train_data_processed.tsv
+    - path: data/splits/X_train.npy
       hash: md5
-      md5: 102f1f4193e0bdebdd6cce7f13e0a839
-      size: 54686
-    - path: src/run_train.py
+      md5: 50cdc707778354daeaf330f251a752f7
+      size: 8179328
+    - path: data/splits/y_train.npy
       hash: md5
-      md5: 839b88d2461f7304ed9fe5432d87217d
-      size: 207
+      md5: f7133ef9eab9657fd8847d02553b6d21
+      size: 5888
     - path: src/train.py
       hash: md5
-      md5: 1fa48fcca66a4b8b58e7562e09203019
-      size: 5491
+      md5: e329d6a45b0ffb9d407a94323c2a4afe
+      size: 1632
     outs:
     - path: models/sentiment_classifier.joblib
       hash: md5
-      md5: 35c03fcc854b213ba0d3926b0bce7d09
+      md5: 7dc6aed243ae2e83d0af2e966804ad5f
       size: 46215
   evaluate:
-    cmd: python src/evaluate.py models/sentiment_classifier.joblib data/processed/train_data_processed.tsv
-      metrics/metrics.json
+    cmd: python src/evaluate.py models/sentiment_classifier.joblib data/splits/X_test.npy
+      data/splits/y_test.npy
     deps:
-    - path: data/processed/train_data_processed.tsv
+    - path: data/splits/X_test.npy
       hash: md5
-      md5: 102f1f4193e0bdebdd6cce7f13e0a839
-      size: 54686
+      md5: d2884824a03d158e5494d4a1a7aedf34
+      size: 2044928
+    - path: data/splits/y_test.npy
+      hash: md5
+      md5: 600ef4282a577f6dc3224d76026f1921
+      size: 1568
     - path: models/sentiment_classifier.joblib
       hash: md5
-      md5: 35c03fcc854b213ba0d3926b0bce7d09
+      md5: 7dc6aed243ae2e83d0af2e966804ad5f
       size: 46215
     - path: src/evaluate.py
       hash: md5
-      md5: be2961c1bfa43a1ed24da38185b2e217
-      size: 956
+      md5: d999e04aca98e787a5eb5f3a3dd24664
+      size: 1151
     outs:
     - path: metrics/metrics.json
       hash: md5
-      md5: 38f080b64d255412913c6a5a955ca38c
-      size: 176
+      md5: 29e7a3ffa12ad4fbdc1a1180a260a441
+      size: 174
+  get_data:
+    cmd: python src/download_data.py
+    deps:
+    - path: src/download_data.py
+      hash: md5
+      md5: 8e0e735de3eb6eb7b11cfd4b1ae8e17c
+      size: 754
+    outs:
+    - path: data/raw/raw_data.tsv
+      hash: md5
+      md5: 102f1f4193e0bdebdd6cce7f13e0a839
+      size: 54686

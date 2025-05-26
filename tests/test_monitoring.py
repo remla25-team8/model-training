@@ -1,7 +1,7 @@
 import json
 import numpy as np
 from datetime import datetime
-from src.train import train_model, get_data_splits
+from old_train import train_model, get_data_splits
 import pandas as pd
 from sklearn.metrics import confusion_matrix, accuracy_score
 import logging

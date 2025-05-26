@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from sklearn.metrics import accuracy_score
-from src.train import train_model, get_data_splits
+from old_train import train_model, get_data_splits
 from lib_ml.preprocessor import Preprocessor
 import logging
 

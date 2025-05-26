@@ -4,7 +4,7 @@ import numpy as np
 from memory_profiler import memory_usage
 from concurrent.futures import ThreadPoolExecutor
 import threading
-from src.train import train_model, get_data_splits
+from old_train import train_model, get_data_splits
 from lib_ml.preprocessor import Preprocessor
 from sklearn.naive_bayes import GaussianNB
 import pandas as pd
