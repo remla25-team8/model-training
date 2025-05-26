@@ -136,6 +136,14 @@ jobs:
       id: testing
       run: |
         echo "Running comprehensive ML test suite..."
+
+        # Ensure src is on PYTHONPATH
+        export PYTHONPATH="$PYTHONPATH:$(pwd)/src"
+
+        # Symlink train_data.tsv if not present
+        if [ ! -f train_data.tsv ]; then
+          ln -s data/raw/train_data.tsv train_data.tsv
+        fi
         
         coverage run --source=src -m pytest tests/ -v \
           --junitxml=test-results.xml \
