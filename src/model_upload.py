@@ -1,11 +1,14 @@
+"""
+This module handles uploading a trained model to the Hugging Face Hub.
+"""
+
 import os
 import argparse
 import zipfile
 import shutil
 import tempfile
-from huggingface_hub import HfApi, create_repo
-from huggingface_hub import login
 from dotenv import load_dotenv
+from huggingface_hub import HfApi, create_repo, login
 
 load_dotenv()
 
@@ -15,11 +18,11 @@ def upload_model(model_zip_path: str, version: str) -> None:
     Upload trained model and metadata to Hugging Face Hub.
 
     Args:
-        model_path: Path to the trained model file
-        version: Model version string
+        model_zip_path (str): Path to the trained model zip file.
+        version (str): Model version string.
 
     Raises:
-        ValueError: If HF_TOKEN environment variable is not set
+        ValueError: If HF_TOKEN environment variable is not set.
     """
     hf_token = os.getenv("HF_TOKEN")
     if not hf_token:
@@ -65,8 +68,8 @@ def upload_model(model_zip_path: str, version: str) -> None:
             )
 
             print(f"Model version {version} uploaded successfully to https://huggingface.co/{repo_name}")
-        except Exception as e:
-            print(f"Error during upload: {str(e)}")
+        except Exception as upload_error:
+            print(f"Error during upload: {str(upload_error)}")
 
     finally:
         # Clean up: remove the temporary directory
@@ -75,8 +78,8 @@ def upload_model(model_zip_path: str, version: str) -> None:
 
 
 if __name__ == '__main__':
-    args = argparse.ArgumentParser()
-    args.add_argument("model_zip_path", type=str)
-    args.add_argument("version", type=str)
-    args = args.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("model_zip_path", type=str)
+    parser.add_argument("version", type=str)
+    args = parser.parse_args()
     upload_model(args.model_zip_path, args.version)

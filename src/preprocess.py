@@ -1,13 +1,23 @@
-import pandas as pd
-from sklearn.model_selection import train_test_split
-from lib_ml.preprocessor import Preprocessor
-from typing import Tuple
-import numpy as np
+"""
+This module provides functions to preprocess data and split it into training and test sets.
+"""
+
 import os
 import argparse
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from lib_ml.preprocessor import Preprocessor
 
 
-def preprocess_data(dataset: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
+def preprocess_data(dataset: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Preprocess the dataset by cleaning and vectorizing the reviews.
+    Args:
+        dataset (pd.DataFrame): The dataset containing reviews and labels.
+    Returns:
+        tuple: A tuple containing the features and labels.
+    """
     preprocessor = Preprocessor()
 
     reviews = dataset['Review']
@@ -22,15 +32,11 @@ def get_data_splits(
     raw_data_path: str,
     test_size: float = 0.20,
     random_state: int = 0
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Load and preprocess training data.
     Returns:
-        Tuple containing:
-            - X_train: Training features
-            - X_test: Test features
-            - y_train: Training labels
-            - y_test: Test labels
+        tuple: A tuple containing training and test features and labels.
     """
     dataset = pd.read_csv(raw_data_path, delimiter='\t', quoting=3)
 
@@ -48,19 +54,24 @@ def get_data_splits(
 
 if __name__ == '__main__':
     # Parse command line arguments, these are the params for dvc pipeline to pass.
-    args = argparse.ArgumentParser()
-    args.add_argument("raw_data_path", type=str)
-    args.add_argument("--test_size", type=float, required=False, default=0.20)
-    args.add_argument("--random_state", type=int, required=False, default=0)
-    args.add_argument("--data_splits_dir", type=str, required=False, default="data/splits")
-    args = args.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("raw_data_path", type=str)
+    parser.add_argument("--test_size", type=float, required=False, default=0.20)
+    parser.add_argument("--random_state", type=int, required=False, default=0)
+    parser.add_argument(
+        "--data_splits_dir",
+        type=str,
+        required=False,
+        default="data/splits"
+    )
+    args = parser.parse_args()
 
     # Get the data splits
-    X_train, X_test, y_train, y_test = get_data_splits(args.raw_data_path)
+    X_train_split, X_test_split, y_train_split, y_test_split = get_data_splits(args.raw_data_path)
 
     # Save the data splits to the data splits directory
     os.makedirs(args.data_splits_dir, exist_ok=True)
-    np.save(os.path.join(args.data_splits_dir, 'X_train.npy'), X_train)
-    np.save(os.path.join(args.data_splits_dir, 'X_test.npy'), X_test)
-    np.save(os.path.join(args.data_splits_dir, 'y_train.npy'), y_train)
-    np.save(os.path.join(args.data_splits_dir, 'y_test.npy'), y_test)
+    np.save(os.path.join(args.data_splits_dir, 'X_train.npy'), X_train_split)
+    np.save(os.path.join(args.data_splits_dir, 'X_test.npy'), X_test_split)
+    np.save(os.path.join(args.data_splits_dir, 'y_train.npy'), y_train_split)
+    np.save(os.path.join(args.data_splits_dir, 'y_test.npy'), y_test_split)

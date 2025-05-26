@@ -1,23 +1,27 @@
-import joblib
+"""
+This module handles downloading and loading models from the Hugging Face Hub.
+"""
+
 import json
-from typing import Any, Dict, Tuple
+from typing import Any
+import joblib
 from huggingface_hub import hf_hub_download
 
 
-def download_and_load_model(version: str) -> Tuple[Any, Dict[str, Any]]:
+def download_and_load_model(version: str) -> tuple[Any, dict[str, Any]]:
     """
     Downloads and loads a model and its metadata from Hugging Face Hub.
 
     Args:
-        version: The version/revision of the model to download
+        version (str): The version/revision of the model to download.
 
     Returns:
-        Tuple containing:
+        tuple: A tuple containing:
             - The loaded classifier model
             - Dictionary containing the model metadata
 
     Raises:
-        Exception: If there are issues downloading or loading the model/metadata
+        Exception: If there are issues downloading or loading the model/metadata.
     """
     # Download model and metadata from HF Hub
     model_path = hf_hub_download(
@@ -34,7 +38,7 @@ def download_and_load_model(version: str) -> Tuple[Any, Dict[str, Any]]:
 
     # Load model and metadata
     classifier = joblib.load(model_path)
-    with open(metadata_path) as f:
+    with open(metadata_path, encoding='utf-8') as f:
         metadata = json.load(f)
 
     return classifier, metadata
