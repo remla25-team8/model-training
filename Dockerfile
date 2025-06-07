@@ -8,12 +8,19 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
-COPY src/requirements.txt .
+# Copy requirements files first for better caching
+COPY requirements.txt requirements-dev.txt ./
 
-# Install main and test dependencies
-RUN pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir pytest pytest-cov memory-profiler psutil
+# Install dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir -r requirements-dev.txt
 
-# Copy source code
-COPY src/ .
+# Copy source code (maintaining directory structure)
+COPY src/ ./src/
+
+# Set Python path to include src
+ENV PYTHONPATH=/app/src:$PYTHONPATH
+
+# Set working directory to src for compatibility with train.py
+WORKDIR /app/src

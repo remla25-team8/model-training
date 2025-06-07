@@ -1,4 +1,7 @@
-permissions: write-all
+permissions:
+  contents: write
+  packages: write
+  actions: read
 name: DVC Pipeline and Release
 on:
   push:
