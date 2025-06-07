@@ -21,13 +21,16 @@ stages:
       - data/splits/y_train.npy
       - data/splits/y_test.npy
   train:
-    cmd: python src/train.py data/splits/X_train.npy data/splits/y_train.npy
+    cmd: python src/train.py local-dev
     deps:
       - data/splits/X_train.npy
       - data/splits/y_train.npy
+      - data/splits/X_test.npy
+      - data/splits/y_test.npy
       - src/train.py
     outs:
       - models/sentiment_classifier.joblib
+      - models/metadata.json
   evaluate:
     cmd: python src/evaluate.py models/sentiment_classifier.joblib data/splits/X_test.npy data/splits/y_test.npy
     deps:

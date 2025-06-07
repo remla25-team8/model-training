@@ -7,7 +7,7 @@ import pandas as pd
 from huggingface_hub import HfApi
 from pathlib import Path
 from lib_ml.preprocessor import Preprocessor
-from train import train
+from train import train_model
 import numpy as np
 from model_upload import upload_model
 from evaluate import evaluate_model
@@ -84,7 +84,7 @@ def trained_model():
     y_test = np.load('data/splits/y_test.npy')
 
     # Use only 500 samples for training since this is only for infrastructure.
-    classifier = train(X_train[:500], y_train[:500])
+    classifier = train_model(X_train[:500], y_train[:500])
     metrics = evaluate_model(classifier, X_test, y_test)
     cm = metrics['confusion_matrix']
     acc = metrics['accuracy']

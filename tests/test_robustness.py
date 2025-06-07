@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
-from train import train
+from train import train_model
 from lib_ml.preprocessor import Preprocessor
 import logging
 import pytest

@@ -31,7 +31,20 @@ To execute training and upload run:
 ```bash
 python train.py production --version <version>
 ```
-Note: You will need to have a unique version. The naming convension will follow v1, v2, v3, etc (For now theres just the version: v1). Additionally you must have a .env with a `HF_TOKEN` set. If you don't have access to the token you must at least have permission to create a version tag which on creation will trigger the model to be trained and uploaded to github.
+
+**Note:** 
+- You will need to have a unique version. The naming convention follows v1, v2, v3, etc.
+- For production mode, you must have a `.env` file with a `HF_TOKEN` set.
+- If you don't have access to the token, you can create a version tag which will trigger automatic model training and upload via GitHub Actions.
+
+**Additional options:**
+```bash
+# Train with custom data paths
+python train.py local-dev --X-train data/splits/X_train.npy --y-train data/splits/y_train.npy
+
+# Train with transfer learning from existing model
+python train.py production --version v2 --base-model-version v1
+```
 
 After uploading you can verify that it worked by running:
 ```bash

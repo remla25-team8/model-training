@@ -1,4 +1,4 @@
-from train import train
+from train import train_model
 from preprocess import get_data_splits
 import numpy as np
 from sklearn.metrics import roc_auc_score, precision_score, recall_score
