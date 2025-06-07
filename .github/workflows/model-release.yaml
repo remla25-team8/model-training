@@ -11,10 +11,44 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+      
+      - name: Prepare test environment
+        run: |
+          echo "Setting up test environment..."
+          python scripts/create_test_data.py
+          
+          # Create symlink for raw_data.tsv that tests expect
+          mkdir -p data/raw
+          if [ -f data/raw/train_test.tsv ]; then
+            ln -sf train_test.tsv data/raw/raw_data.tsv
+          fi
+          
+          # Preprocess data for tests that need data splits
+          if [ -f data/raw/raw_data.tsv ]; then
+            python src/preprocess.py data/raw/raw_data.tsv
+          fi
+          
+          # Train a model for tests that need it
+          if [ -d data/splits ]; then
+            python src/train.py local-dev
+          fi
+      
       - name: Run tests
         run: |
-          pip install pytest
-          pytest tests/
+          # Ensure src is on PYTHONPATH
+          export PYTHONPATH="$PYTHONPATH:$(pwd)/src"
+          
+          pytest tests/ -v
 
   train-and-release:
     needs: test
@@ -49,7 +83,10 @@ jobs:
         with:
           python-version: '3.x'
       - name: Install Dependencies
-        run: pip install -r src/requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
