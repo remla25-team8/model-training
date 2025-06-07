@@ -4,9 +4,11 @@ services:
       context: .
       dockerfile: Dockerfile
     volumes:
-      - ./src:/app
+      - ./data:/app/src/data
+      - ./models:/app/src/models
     environment:
       - PYTHONUNBUFFERED=1
+      - HF_TOKEN
     command: ["python", "train.py", "local-dev"]
 
   model-tests:
@@ -14,8 +16,10 @@ services:
     volumes:
       - ./src:/app/src
       - ./tests:/app/tests
+      - ./data:/app/src/data
+      - ./models:/app/src/models
     environment:
-      - PYTHONPATH=/app
+      - PYTHONPATH=/app/src
       - HF_TOKEN
     working_dir: /app
     command: ["python", "-m", "pytest", "/app/tests", "-v"]

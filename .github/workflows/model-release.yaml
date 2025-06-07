@@ -1,5 +1,8 @@
 name: Model Training and Release
-permissions: write-all
+permissions:
+  contents: write
+  packages: write
+  actions: read
 on:
   push:
     tags:
@@ -11,10 +14,49 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+      
+      - name: Prepare test environment
+        run: |
+          echo "Setting up test environment..."
+          python scripts/create_test_data.py
+          
+          # Create symlink for raw_data.tsv that tests expect
+          mkdir -p data/raw
+          if [ -f data/raw/train_test.tsv ]; then
+            ln -sf train_test.tsv data/raw/raw_data.tsv
+          fi
+          
+          # Preprocess data for tests that need data splits
+          if [ -f data/raw/raw_data.tsv ]; then
+            python src/preprocess.py data/raw/raw_data.tsv
+          fi
+          
+          # Train a model for tests that need it
+          if [ -d data/splits ]; then
+            python src/train.py local-dev
+            # Generate metrics file for tests
+            python src/evaluate.py models/sentiment_classifier.joblib data/splits/X_test.npy data/splits/y_test.npy
+          fi
+      
       - name: Run tests
         run: |
-          pip install pytest
-          pytest tests/
+          # Ensure src is on PYTHONPATH
+          export PYTHONPATH="$PYTHONPATH:$(pwd)/src"
+          
+          # Also set PYTHONPATH in environment for safety
+          echo "PYTHONPATH=$PYTHONPATH:$(pwd)/src" >> $GITHUB_ENV
+          
+          pytest tests/ -v
 
   train-and-release:
     needs: test
@@ -47,9 +89,12 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: '3.11'
       - name: Install Dependencies
-        run: pip install -r src/requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -71,13 +116,28 @@ jobs:
           aws s3 ls s3://remla25-team8/dvcstore/files/md5 || echo "Path inaccessible"
       - name: Pull dvc data
         run: |
-          dvc pull --force
+          # First, try normal pull
+          if ! dvc pull --force; then
+            echo "DVC pull failed, attempting to reproduce missing data..."
+            
+            # Check what's missing
+            dvc status
+            
+            # Try to reproduce the pipeline to generate missing files
+            dvc repro --force
+            
+            # Push any newly generated files back to S3
+            dvc push
+          fi
+          
           echo "DVC pull completed, checking data files:"
-          ls -l data/processed/train_data_processed.tsv || echo "Data files missing"
+          ls -l data/raw/raw_data.tsv || echo "Raw data missing"
+          ls -l data/splits/ || echo "Split data missing"
       - name: Verify data files
         run: |
           echo "Checking data files:"
-          ls -l data/processed/train_data_processed.tsv || exit 1
+          ls -l data/raw/raw_data.tsv || exit 1
+          ls -l data/splits/X_train.npy || exit 1
       - name: Train and release model
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
@@ -95,8 +155,8 @@ jobs:
           # Run training using the local image
           docker run --rm \
             --env-file .env \
-            -v $(pwd)/data:/app/data \
-            -e DATA_PATH=/app/data/processed/train_data_processed.tsv \
+            -v $(pwd)/data:/app/src/data \
+            -v $(pwd)/models:/app/src/models \
             $IMG:latest \
             python train.py production --version ${{ env.version }}
           

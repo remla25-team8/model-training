@@ -3,7 +3,7 @@ import psutil
 import numpy as np
 from memory_profiler import memory_usage
 from concurrent.futures import ThreadPoolExecutor
-from train import train
+from train import train_model
 from lib_ml.preprocessor import Preprocessor
 import pandas as pd
 import pytest
@@ -40,7 +40,7 @@ def test_training_time(get_splits):
     """Test model training completes within time limit"""
     X_train, X_test, y_train, y_test = get_splits
     start_time = time.time()
-    train(X_train, y_train)
+    train_model(X_train, y_train)
     training_time = time.time() - start_time
     assert training_time < 30, f"Training took too long: {training_time:.2f} seconds"
 
@@ -52,7 +52,7 @@ def test_memory_usage(get_splits, trained_model):
 
     # Test training memory usage
     def training_task():
-        train(X_train, y_train)
+        train_model(X_train, y_train)
 
     mem_usage = max(memory_usage(training_task))
     assert mem_usage < 1000, f"Training used too much memory: {mem_usage:.2f} MB"
@@ -105,7 +105,7 @@ def test_cpu_usage(get_splits, trained_model, dataset):
 
     # Measure CPU during training
     measure_cpu()
-    train(X_train, y_train)
+    train_model(X_train, y_train)
     train_cpu = measure_cpu()
     assert train_cpu < 90, f"Training CPU usage too high: {train_cpu}%"
 
@@ -177,7 +177,7 @@ def test_scalability(get_splits):
         y_subset = y_train[:n_samples]
 
         start_time = time.time()
-        train(X_subset, y_subset)
+        train_model(X_subset, y_subset)
         train_time = time.time() - start_time
         times.append(train_time)
 

@@ -1,5 +1,5 @@
 import numpy as np
-from train import train
+from train import train_model
 import pandas as pd
 import logging
 import tempfile
