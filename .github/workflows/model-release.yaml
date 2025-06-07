@@ -41,12 +41,17 @@ jobs:
           # Train a model for tests that need it
           if [ -d data/splits ]; then
             python src/train.py local-dev
+            # Generate metrics file for tests
+            python src/evaluate.py models/sentiment_classifier.joblib data/splits/X_test.npy data/splits/y_test.npy
           fi
       
       - name: Run tests
         run: |
           # Ensure src is on PYTHONPATH
           export PYTHONPATH="$PYTHONPATH:$(pwd)/src"
+          
+          # Also set PYTHONPATH in environment for safety
+          echo "PYTHONPATH=$PYTHONPATH:$(pwd)/src" >> $GITHUB_ENV
           
           pytest tests/ -v
 
@@ -108,13 +113,28 @@ jobs:
           aws s3 ls s3://remla25-team8/dvcstore/files/md5 || echo "Path inaccessible"
       - name: Pull dvc data
         run: |
-          dvc pull --force
+          # First, try normal pull
+          if ! dvc pull --force; then
+            echo "DVC pull failed, attempting to reproduce missing data..."
+            
+            # Check what's missing
+            dvc status
+            
+            # Try to reproduce the pipeline to generate missing files
+            dvc repro --force
+            
+            # Push any newly generated files back to S3
+            dvc push
+          fi
+          
           echo "DVC pull completed, checking data files:"
-          ls -l data/processed/train_data_processed.tsv || echo "Data files missing"
+          ls -l data/raw/raw_data.tsv || echo "Raw data missing"
+          ls -l data/splits/ || echo "Split data missing"
       - name: Verify data files
         run: |
           echo "Checking data files:"
-          ls -l data/processed/train_data_processed.tsv || exit 1
+          ls -l data/raw/raw_data.tsv || exit 1
+          ls -l data/splits/X_train.npy || exit 1
       - name: Train and release model
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
@@ -133,7 +153,7 @@ jobs:
           docker run --rm \
             --env-file .env \
             -v $(pwd)/data:/app/data \
-            -e DATA_PATH=/app/data/processed/train_data_processed.tsv \
+            -v $(pwd)/models:/app/models \
             $IMG:latest \
             python train.py production --version ${{ env.version }}
           

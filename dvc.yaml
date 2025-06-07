@@ -30,7 +30,6 @@ stages:
       - src/train.py
     outs:
       - models/sentiment_classifier.joblib
-      - models/metadata.json
   evaluate:
     cmd: python src/evaluate.py models/sentiment_classifier.joblib data/splits/X_test.npy data/splits/y_test.npy
     deps:

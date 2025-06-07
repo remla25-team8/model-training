@@ -18,6 +18,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
+          
+      - name: Prepare test environment
+        run: |
+          echo "Setting up test environment for DVC..."
+          python scripts/create_test_data.py
+          
+          # Create symlink for raw_data.tsv that DVC expects
+          mkdir -p data/raw
+          if [ -f data/raw/train_test.tsv ]; then
+            ln -sf train_test.tsv data/raw/raw_data.tsv
+          fi
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -30,9 +41,25 @@ jobs:
         run: |
           dvc remote add -d storage s3://remla25-team8/dvcstore
       - name: Pull DVC Data
-        run: dvc pull
+        run: |
+          # First, try normal pull
+          if ! dvc pull; then
+            echo "DVC pull failed, attempting to fix missing files..."
+            
+            # If specific files are missing from cache, try to repro first
+            dvc status
+            
+            # Try to reproduce missing stages
+            dvc repro --force
+            
+            # Push any newly generated files
+            dvc push
+          fi
       - name: Run DVC Pipeline
-        run: dvc repro
+        run: |
+          # Set PYTHONPATH for DVC pipeline
+          export PYTHONPATH="$PYTHONPATH:$(pwd)/src"
+          dvc repro
       - name: Push DVC Data to S3
         run: dvc push
       - name: Package Model

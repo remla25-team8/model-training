@@ -73,6 +73,9 @@ def cleanup_hf_revision():
                 api.delete_revision(repo_name, test_revision)
         except Exception as e:
             print(f"Warning: Could not cleanup test revision after tests: {e}")
+    else:
+        # If no HF_TOKEN, just yield without doing anything
+        yield
 
 
 @pytest.fixture
