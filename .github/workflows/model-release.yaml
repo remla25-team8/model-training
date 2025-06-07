@@ -155,8 +155,8 @@ jobs:
           # Run training using the local image
           docker run --rm \
             --env-file .env \
-            -v $(pwd)/data:/app/data \
-            -v $(pwd)/models:/app/models \
+            -v $(pwd)/data:/app/src/data \
+            -v $(pwd)/models:/app/src/models \
             $IMG:latest \
             python train.py production --version ${{ env.version }}
           
