@@ -80,7 +80,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.PAT_Token }}
+          password: ${{ secrets.GH_TOKEN }}
 
       - name: Convert repository owner to lowercase
         id: lowercase
@@ -180,7 +180,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          token: ${{ secrets.PAT_Token }}
+          token: ${{ secrets.GH_TOKEN }}
           draft: false
           prerelease: ${{ contains(github.ref_name, '-pre') }}
           name: Release ${{ github.ref_name }}
