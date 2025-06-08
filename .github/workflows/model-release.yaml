@@ -28,25 +28,67 @@ jobs:
       - name: Prepare test environment
         run: |
           echo "Setting up test environment..."
+          
+          # Set PYTHONPATH for all commands
+          export PYTHONPATH="$PYTHONPATH:$(pwd)/src"
+          
+          # Create test data
           python scripts/create_test_data.py
           
           # Create symlink for raw_data.tsv that tests expect
           mkdir -p data/raw
           if [ -f data/raw/train_test.tsv ]; then
-            ln -sf train_test.tsv data/raw/raw_data.tsv
+            cd data/raw
+            ln -sf train_test.tsv raw_data.tsv
+            cd ../..
+          fi
+          
+          # Verify the file exists
+          if [ ! -f data/raw/raw_data.tsv ]; then
+            echo "Error: raw_data.tsv not found after symlink creation"
+            ls -la data/raw/
+            exit 1
           fi
           
           # Preprocess data for tests that need data splits
-          if [ -f data/raw/raw_data.tsv ]; then
-            python src/preprocess.py data/raw/raw_data.tsv
+          echo "Preprocessing data..."
+          python src/preprocess.py data/raw/raw_data.tsv
+          
+          # Verify data splits were created
+          if [ ! -f data/splits/X_train.npy ]; then
+            echo "Error: Data splits not created"
+            ls -la data/splits/ || echo "data/splits directory doesn't exist"
+            exit 1
           fi
           
           # Train a model for tests that need it
-          if [ -d data/splits ]; then
-            python src/train.py local-dev
-            # Generate metrics file for tests
-            python src/evaluate.py models/sentiment_classifier.joblib data/splits/X_test.npy data/splits/y_test.npy
+          echo "Training model for tests..."
+          python src/train.py local-dev
+          
+          # Verify model was created
+          if [ ! -f models/sentiment_classifier.joblib ]; then
+            echo "Error: Model not created"
+            ls -la models/ || echo "models directory doesn't exist"
+            exit 1
           fi
+          
+          # Generate metrics file for tests
+          echo "Generating metrics..."
+          python src/evaluate.py models/sentiment_classifier.joblib data/splits/X_test.npy data/splits/y_test.npy
+          
+          # Verify metrics were created
+          if [ ! -f metrics/metrics.json ]; then
+            echo "Error: Metrics not created"
+            ls -la metrics/ || echo "metrics directory doesn't exist"
+            exit 1
+          fi
+          
+          echo "Test environment setup completed successfully!"
+          echo "Files created:"
+          ls -la data/raw/raw_data.tsv
+          ls -la data/splits/
+          ls -la models/sentiment_classifier.joblib
+          ls -la metrics/metrics.json
       
       - name: Run tests
         run: |
@@ -56,6 +98,14 @@ jobs:
           # Also set PYTHONPATH in environment for safety
           echo "PYTHONPATH=$PYTHONPATH:$(pwd)/src" >> $GITHUB_ENV
           
+          # Verify test files exist before running
+          echo "Verifying test files exist..."
+          ls -la data/raw/raw_data.tsv || (echo "Missing raw_data.tsv" && exit 1)
+          ls -la data/splits/X_train.npy || (echo "Missing X_train.npy" && exit 1)
+          ls -la models/sentiment_classifier.joblib || (echo "Missing model" && exit 1)
+          ls -la metrics/metrics.json || (echo "Missing metrics" && exit 1)
+          
+          echo "All test files verified, running tests..."
           pytest tests/ -v
 
   train-and-release:
