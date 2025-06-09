@@ -5,17 +5,20 @@ stages:
       - src/download_data.py
     outs:
       - data/raw/raw_data.tsv
-  test_data:
-    cmd: pytest tests/test_data.py
-    deps:
-      - data/raw/raw_data.tsv
-      - tests/test_data.py
   prepare:
     cmd: python src/preprocess.py data/raw/raw_data.tsv
     deps:
       - data/raw/raw_data.tsv
       - src/preprocess.py
     outs:
+      - data/splits/X_train.npy
+      - data/splits/X_test.npy
+      - data/splits/y_train.npy
+      - data/splits/y_test.npy
+  monitor_prepared_data:
+    cmd: pytest tests/test_monitoring.py
+    deps:
+      - tests/test_monitoring.py
       - data/splits/X_train.npy
       - data/splits/X_test.npy
       - data/splits/y_train.npy
