@@ -10,7 +10,7 @@ import tempfile
 from dotenv import load_dotenv
 from huggingface_hub import HfApi, create_repo, login
 
-load_dotenv()
+load_dotenv(".secrets")
 
 
 def upload_model(model_zip_path: str, version: str) -> None:

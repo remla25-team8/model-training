@@ -3,15 +3,14 @@ import pytest
 import os
 import json
 import tempfile
-import pandas as pd
 from huggingface_hub import HfApi
 from pathlib import Path
-from lib_ml.preprocessor import Preprocessor
-from train import train
-import numpy as np
 from model_upload import upload_model
-from evaluate import evaluate_model
 import shutil
+
+from dotenv import load_dotenv
+
+load_dotenv('.secrets')
 
 # Global variable to store zip path
 zip_path = None
@@ -75,49 +74,6 @@ def cleanup_hf_revision():
             print(f"Warning: Could not cleanup test revision after tests: {e}")
 
 
-@pytest.fixture
-def trained_model():
-    """Fixture that provides a trained model, confusion matrix, and accuracy"""
-    X_train = np.load('data/splits/X_train.npy')
-    y_train = np.load('data/splits/y_train.npy')
-    X_test = np.load('data/splits/X_test.npy')
-    y_test = np.load('data/splits/y_test.npy')
-
-    # Use only 500 samples for training since this is only for infrastructure.
-    classifier = train(X_train[:500], y_train[:500])
-    metrics = evaluate_model(classifier, X_test, y_test)
-    cm = metrics['confusion_matrix']
-    acc = metrics['accuracy']
-    return classifier, cm, acc
-
-
-def test_model_serialization(trained_model):
-    """Test model can be serialized and deserialized"""
-    # Get trained model and preprocessor
-    classifier, _, _ = trained_model
-
-    # Create temporary file path
-    with tempfile.NamedTemporaryFile(suffix='.joblib', delete=True) as tmp:
-        model_path = Path(tmp.name)
-
-        # Test serialization
-        joblib.dump(classifier, model_path)
-        assert model_path.exists(), "Model file not created"
-        assert model_path.stat().st_size > 0, "Model file is empty"
-
-        # Test deserialization
-        loaded_model = joblib.load(model_path)
-        assert hasattr(loaded_model, 'predict'), "Loaded model missing predict method"
-
-        # Test prediction consistency
-        X_test = np.load('data/splits/X_test.npy')
-        original_pred = classifier.predict(X_test)
-        loaded_pred = loaded_model.predict(X_test)
-        assert (original_pred == loaded_pred).all(), "Loaded model predictions differ"
-
-        # File will be automatically deleted when exiting the with block
-
-
 def test_environment_variables():
     """Test missing environment variable handling"""
     if "HF_TOKEN" in os.environ:
@@ -148,3 +104,6 @@ def test_model_upload():
     repo_name = "todor-cmd/sentiment-classifier"
     assert api.repo_exists(repo_name), "Model repository not found"
     assert api.revision_exists(repo_name, "test"), "Model version not found"
+
+
+

@@ -14,7 +14,7 @@ This repository will contain the ML training pipeline.
 ## Running locally
 First setup environment using:
 ```bash
-conda env -f environment.yaml
+conda env create -f environment.yaml
 conda activate remla-model-training
 ```
 The relevant files are all in `src` so navigate to that directory in your terminal
