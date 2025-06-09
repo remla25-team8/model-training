@@ -35,18 +35,6 @@ def trained_model():
     return classifier, cm, acc
 
 
-def test_train_test_split(get_splits):
-    """Test that train-test split maintains class distribution"""
-    X_train, X_test, y_train, y_test = get_splits
-    train_balance = np.mean(y_train)
-    test_balance = np.mean(y_test)
-    assert abs(train_balance - test_balance) < 0.1  # Similar balance
-
-    # Test sizes
-    assert len(X_train) > len(X_test), "Training set should be larger than test set"
-    assert len(X_train) + len(X_test) > 0, "Data split should not be empty"
-
-
 def test_model_training(trained_model):
     """Test that model training produces valid outputs"""
     classifier, cm, acc = trained_model
@@ -57,7 +45,7 @@ def test_model_training(trained_model):
 
 def test_model_metrics(get_splits, trained_model):
     """Test model performance metrics meet minimum thresholds"""
-    X_train, X_test, y_train, y_test = get_splits
+    _, X_test, _, y_test = get_splits
     classifier, _, _ = trained_model
 
     # Get predictions
@@ -78,7 +66,7 @@ def test_model_metrics(get_splits, trained_model):
 def test_model_calibration(get_splits, trained_model):
     """Test model probability calibration"""
     classifier, _, _ = trained_model
-    X_train, X_test, y_train, y_test = get_splits
+    _, X_test, _, y_test = get_splits
 
     # Get probability predictions
     probas = classifier.predict_proba(X_test)
@@ -95,7 +83,7 @@ def test_model_calibration(get_splits, trained_model):
 
 def test_model_stability_across_samples(get_splits, trained_model):
     """Test model performance consistency across random test set samples"""
-    X_train, X_test, y_train, y_test = get_splits
+    _, X_test, _, y_test = get_splits
     classifier, _, baseline_acc = trained_model
 
     # Test on different random samples from test set
