@@ -290,8 +290,7 @@ jobs:
         path: |
           model-test-results.xml
     
-    outputs:
-      # Removed model_coverage output since we're not measuring it
+    
 
   # Job 5: Mutamorphic Tests
   mutamorphic-tests:
@@ -350,9 +349,6 @@ jobs:
         name: mutamorphic-test-results
         path: |
           mutamorphic-test-results.xml
-    
-    outputs:
-      # Removed mutamorphic_coverage output since we're not measuring it
 
   # Job 6: Non-Functional Tests
   non-functional-tests:
@@ -412,8 +408,6 @@ jobs:
         path: |
           nonfunctional-test-results.xml
     
-    outputs:
-      # Removed nonfunctional_coverage output since we're not measuring it
 
   # Job 7: Model Upload to Hugging Face (Only on Tags)
   model-upload:
