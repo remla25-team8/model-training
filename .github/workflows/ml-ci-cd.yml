@@ -213,6 +213,9 @@ jobs:
         echo "Using existing DVC remote configuration..."
         dvc remote list
         
+        echo "Configuring DVC remote region from environment..."
+        dvc config remote.storage.region "$AWS_DEFAULT_REGION"
+        
         echo "Running DVC pipeline..."
         dvc repro --force
         
@@ -491,6 +494,9 @@ jobs:
         echo "Using existing DVC remote configuration..."
         dvc remote list
         
+        echo "Configuring DVC remote region from environment..."
+        dvc config remote.storage.region "$AWS_DEFAULT_REGION"
+        
         echo "Pushing trained model and data to DVC remote..."
         dvc push
     
@@ -681,6 +687,7 @@ jobs:
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         fetch-depth: 0
+        ref: ${{ github.head_ref || github.ref_name }}
     
     - name: Set up Python ${{ env.PYTHON_VERSION }}
       uses: actions/setup-python@v5
