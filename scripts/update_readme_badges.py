@@ -6,6 +6,7 @@ Automatically updates badges in README.md with latest CI/CD metrics
 """
 
 import argparse
+import json
 import re
 import sys
 from pathlib import Path
@@ -107,6 +108,33 @@ def update_or_add_badge(content: str, badge_label: str, new_badge: str) -> str:
     return "\n".join(lines)
 
 
+def load_ml_test_score_from_json(json_path: str) -> Optional[tuple]:
+    """Load ML Test Score from JSON output and return score and color."""
+    try:
+        with open(json_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        final_score = data.get('final_score', 0)
+        max_score = 7  # ML Test Score is out of 7
+        
+        return final_score, max_score
+    except Exception as e:
+        print(f"Warning: Could not load ML Test Score from {json_path}: {e}")
+        return None
+
+
+def get_ml_test_score_color(score: float) -> str:
+    """Get appropriate color for ML Test Score badge based on raw score (0-7)."""
+    if score >= 5:
+        return "green"      # 5-7: Strong/Exceptional testing
+    elif score >= 3:
+        return "yellow"     # 3-4: Reasonably tested
+    elif score >= 1:
+        return "orange"     # 1-2: Basic productionization
+    else:
+        return "red"        # 0: Research project level
+
+
 def update_readme_badges(readme_path: str, **kwargs) -> bool:
     """Update README.md with new badge metrics."""
     readme_file = Path(readme_path)
@@ -150,7 +178,7 @@ def update_readme_badges(readme_path: str, **kwargs) -> bool:
         if "ml_test_score" in kwargs and "ml_test_color" in kwargs:
             ml_test_badge = create_badge_markdown(
                 "ML%20Test%20Score",
-                f"{kwargs['ml_test_score']:.0f}%",
+                f"{kwargs['ml_test_score']:.1f}/7",
                 kwargs["ml_test_color"],
             )
             # For ML Test Score, we need to handle the URL encoding in the pattern
@@ -161,7 +189,7 @@ def update_readme_badges(readme_path: str, **kwargs) -> bool:
                 content = update_or_add_badge(content, "ML Test Score", ml_test_badge)
             modified = True
             print(
-                f"✅ Updated ML Test Score badge: {kwargs['ml_test_score']:.0f}% ({kwargs['ml_test_color']})"
+                f"✅ Updated ML Test Score badge: {kwargs['ml_test_score']:.1f}/7 ({kwargs['ml_test_color']})"
             )
 
         # Write updated content if modified
@@ -190,11 +218,18 @@ Examples:
   python update_readme_badges.py --coverage-percent 85 --coverage-color yellow
   python update_readme_badges.py --ml-test-score 75 --ml-test-color green
 
+  # Load ML Test Score from JSON (auto-calculates percentage and color)
+  python update_readme_badges.py --ml-test-json ml_test_results.json
+
   # Update all badges at once
   python update_readme_badges.py \\
     --pylint-score 8.5 --pylint-color green \\
     --coverage-percent 85 --coverage-color yellow \\
-    --ml-test-score 75 --ml-test-color green
+    --ml-test-json ml_test_results.json
+
+  # GitHub workflow integration
+  python scripts/calculate_ml_test_score.py --output-json ml_test_results.json
+  python scripts/update_readme_badges.py --ml-test-json ml_test_results.json
         """,
     )
 
@@ -232,9 +267,23 @@ Examples:
         help="Color for ML Test Score badge",
     )
 
+    parser.add_argument(
+        "--ml-test-json",
+        type=str,
+        help="Path to ML Test Score JSON output file (auto-calculates score and color)",
+    )
+
     args = parser.parse_args()
 
-    # Validate that if score is provided theen color is also provided
+    # Load ML Test Score from JSON if provided
+    if args.ml_test_json:
+        ml_score_percentage = load_ml_test_score_from_json(args.ml_test_json)
+        if ml_score_percentage is not None:
+            args.ml_test_score = ml_score_percentage[0]
+            args.ml_test_color = get_ml_test_score_color(args.ml_test_score)
+            print(f"📊 Loaded ML Test Score: {args.ml_test_score:.1f}/7 ({args.ml_test_color})")
+
+    # Validate that if score is provided then color is also provided
     if args.pylint_score is not None and args.pylint_color is None:
         print("❌ Error: --pylint-color is required when --pylint-score is provided")
         sys.exit(1)
@@ -245,7 +294,7 @@ Examples:
         )
         sys.exit(1)
 
-    if args.ml_test_score is not None and args.ml_test_color is None:
+    if args.ml_test_score is not None and args.ml_test_color is None and not args.ml_test_json:
         print("❌ Error: --ml-test-color is required when --ml-test-score is provided")
         sys.exit(1)
 

@@ -139,7 +139,7 @@ def test_model_size(trained_model):
         assert size_mb < 100, f"Model file too large: {size_mb:.2f} MB"
 
 
-def test_feature_cost(get_splits, dataset):
+def test_feature_costs(get_splits, dataset):
     """Test feature extraction cost"""
     X_train, X_test, y_train, y_test = get_splits
     preprocessor = Preprocessor(max_features=1420)

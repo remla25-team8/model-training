@@ -5,6 +5,12 @@ stages:
       - src/download_data.py
     outs:
       - data/raw/raw_data.tsv
+  test_data:
+    cmd: pytest tests/test_data.py
+    deps:
+      - tests/test_data.py
+      - data/raw/raw_data.tsv
+      - src/preprocess.py
   prepare:
     cmd: python src/preprocess.py data/raw/raw_data.tsv
     deps:

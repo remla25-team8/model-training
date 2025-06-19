@@ -1,13 +1,16 @@
-from train import train
-from preprocess import get_data_splits
 import numpy as np
-from sklearn.metrics import roc_auc_score, precision_score, recall_score
+from sklearn.metrics import roc_auc_score, precision_score, recall_score, accuracy_score
 from lib_ml.preprocessor import Preprocessor
 import pandas as pd
 import pytest
-from evaluate import evaluate_model
 import joblib
 import json
+import logging
+
+@pytest.fixture
+def dataset():
+    """Fixture that provides the training dataset"""
+    return pd.read_csv('data/raw/raw_data.tsv', delimiter='\t', quoting=3)
 
 
 @pytest.fixture
@@ -34,16 +37,48 @@ def trained_model():
 
     return classifier, cm, acc
 
+@pytest.fixture
+def preprocessor(dataset):
+    """Fixture that provides a fitted preprocessor"""
+    preprocessor = Preprocessor(max_features=1420)
+    reviews = dataset['Review']
+    preprocessed_reviews = preprocessor.preprocess_batch(reviews)
+    preprocessor.vectorize(preprocessed_reviews)  
+    return preprocessor
 
-def test_model_training(trained_model):
-    """Test that model training produces valid outputs"""
-    classifier, cm, acc = trained_model
-    assert hasattr(classifier, 'predict')  # Is a trained sklearn model
-    assert len(cm) == 2 and len(cm[0]) == 2  # Binary classification confusion matrix
-    assert 0 <= acc <= 1  # Valid accuracy score
+def test_quality_on_slices(dataset, trained_model, preprocessor):
+    """Test model performance on specific data slices"""
+    classifier, _, _ = trained_model  # <-- Add this line to unpack the tuple
+    
+    def evaluate_slice(slice_data, slice_name):
+        if len(slice_data) > 0:
+            # Use vectorize_single for each review
+            vectors = np.vstack([
+                preprocessor.vectorize_single(text) for text in slice_data['Review']
+            ])
+            y = slice_data['Liked']
+            acc = accuracy_score(y, classifier.predict(vectors))  # <-- Use classifier instead of trained_model
+            assert acc > 0.6, f"Poor performance on {slice_name} slice (acc={acc:.2f})"
+            return acc
+        return None
 
+    # Test on review length slices
+    short_reviews = dataset[dataset['Review'].str.len() < 50]
+    medium_reviews = dataset[(dataset['Review'].str.len() >= 50) & (dataset['Review'].str.len() < 200)]
+    long_reviews = dataset[dataset['Review'].str.len() >= 200]
 
-def test_model_metrics(get_splits, trained_model):
+    results = {
+        'short_reviews': evaluate_slice(short_reviews, "short reviews"),
+        'medium_reviews': evaluate_slice(medium_reviews, "medium reviews"),
+        'long_reviews': evaluate_slice(long_reviews, "long reviews")
+    }
+
+    # Log results
+    for slice_name, acc in results.items():
+        if acc is not None:
+            logging.info(f"Accuracy on {slice_name}: {acc:.2f}")
+
+def test_baseline_model(get_splits, trained_model):
     """Test model performance metrics meet minimum thresholds"""
     _, X_test, _, y_test = get_splits
     classifier, _, _ = trained_model
