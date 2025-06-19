@@ -507,6 +507,20 @@ jobs:
         path: |
           model_${{ steps.get_version.outputs.version }}.zip
     
+    - name: Push model artifacts to DVC remote
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+      run: |
+        echo "Configuring DVC remote..."
+        dvc remote add -d storage s3://remla25-team8/dvcstore
+        
+        echo "Pushing trained model and data to DVC remote..."
+        dvc push
+        
+        echo "✅ Model artifacts pushed to DVC remote storage"
+    
     outputs:
       model_version: ${{ env.MODEL_VERSION }}
       model_zip: ${{ env.MODEL_ZIP }}
