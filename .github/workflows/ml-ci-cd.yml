@@ -207,8 +207,13 @@ jobs:
         AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
         HF_TOKEN: ${{ secrets.HF_TOKEN }}
       run: |
-        echo "Initializing DVC..."
-        dvc init --no-scm --force
+        echo "Setting up DVC..."
+        if [ ! -d ".dvc" ]; then
+          echo "Initializing DVC (first time)..."
+          dvc init --no-scm
+        else
+          echo "DVC already initialized, skipping init..."
+        fi
         
         echo "Using existing DVC remote configuration..."
         dvc remote list
