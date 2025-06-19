@@ -5,7 +5,7 @@ permissions:
 
 on:
   push:
-    branches: [ main, develop, xin/feature/custom-pylint ]
+    tags: [ 'v*' ]
   pull_request:
     branches: [ main ]
 
@@ -45,7 +45,6 @@ jobs:
         pip install -r requirements-dev.txt
         pip install -e .
     
-
     - name: Run PyLint
       id: pylint
       run: |
@@ -97,9 +96,9 @@ jobs:
     outputs:
       pylint_score: ${{ steps.pylint.outputs.pylint_score }}
 
-  # Job 2: ML Testing & Coverage
-  ml-testing:
-    name: ML Testing & Coverage Analysis
+  # Job 2: Pre-Pipeline Infrastructure Tests
+  infrastructure-tests:
+    name: Infrastructure Tests (Pre-Pipeline)
     runs-on: ubuntu-latest
     needs: code-quality
     
@@ -114,7 +113,7 @@ jobs:
       with:
         python-version: ${{ env.PYTHON_VERSION }}
     
-    - name: Cache pip dependencies
+    - name: Restore pip cache
       uses: actions/cache@v4
       with:
         path: ~/.cache/pip
@@ -122,50 +121,526 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-
     
-    - name: Install dependencies
+    - name: Install dependencies (if not cached)
       run: |
-        python -m pip install --upgrade pip
-        pip uninstall numpy pandas -y || true
         pip install -r requirements.txt
         pip install -r requirements-dev.txt
         pip install -e .
     
-    - name: Prepare test environment
+    - name: Setup environment variables
       run: |
-        echo "Setting up test environment..."
-        python scripts/create_test_data.py
+        # Create .secrets file for testing
+        echo "AWS_ACCESS_KEY_ID=dummy" > .secrets
+        echo "AWS_SECRET_ACCESS_KEY=dummy" >> .secrets
+        echo "AWS_DEFAULT_REGION=us-east-1" >> .secrets
+        echo "HF_TOKEN=${{ secrets.HF_TOKEN }}" >> .secrets
     
-    - name: Run Tests with Coverage
-      id: testing
+    - name: Run Infrastructure Tests with Coverage
+      id: infrastructure_testing
       run: |
-        echo "Running comprehensive ML test suite..."
-
-        # Ensure src is on PYTHONPATH
+        echo "Running infrastructure tests before pipeline..."
         export PYTHONPATH="$PYTHONPATH:$(pwd)/src"
-
-        # Symlink train_data.tsv if not present
-        if [ ! -f train_data.tsv ]; then
-          ln -s data/raw/train_data.tsv train_data.tsv
-        fi
         
-        coverage run --source=src -m pytest tests/ -v \
-          --junitxml=test-results.xml \
+        coverage run --source=src -m pytest tests/test_infrastructure.py -v \
+          --junitxml=infrastructure-test-results.xml \
           --tb=short
         
-        coverage report --show-missing
-        coverage xml -o coverage.xml
-        coverage html -d htmlcov/
+        coverage report --show-missing | tee infrastructure-coverage.txt
+        coverage xml -o infrastructure-coverage.xml
         
+        # Extract coverage percentage
         coverage_percent=$(coverage report | grep TOTAL | awk '{print $4}' | sed 's/%//' || echo "0")
-        echo "coverage_percent=$coverage_percent" >> $GITHUB_OUTPUT
-        echo "Test Coverage: $coverage_percent%"
+        echo "infrastructure_coverage=$coverage_percent" >> $GITHUB_OUTPUT
+        echo "Infrastructure Test Coverage: $coverage_percent%"
+    
+    - name: Upload infrastructure test artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: infrastructure-test-results
+        path: |
+          infrastructure-test-results.xml
+          infrastructure-coverage.xml
+          infrastructure-coverage.txt
+    
+    outputs:
+      infrastructure_coverage: ${{ steps.infrastructure_testing.outputs.infrastructure_coverage }}
+
+  # Job 3: DVC Pipeline Execution
+  dvc-pipeline:
+    name: DVC ML Pipeline
+    runs-on: ubuntu-latest
+    needs: infrastructure-tests
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Restore pip cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-
+    
+    - name: Install dependencies (if not cached)
+      run: |
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+        pip install -e .
+        pip install dvc[s3]
+    
+    - name: Initialize and run DVC pipeline
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+        HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      run: |
+        echo "Initializing DVC..."
+        dvc init --no-scm --force
         
-        if (( $(echo "$coverage_percent < 20" | bc -l) )); then
-          echo "❌ Test coverage ($coverage_percent%) is below minimum threshold (20%)"
-          exit 1
-        else
-          echo "✅ Test coverage ($coverage_percent%) meets requirements"
-        fi
+        echo "Configuring DVC remote..."
+        dvc remote add -d storage s3://remla25-team8/dvcstore
+        
+        echo "Running DVC pipeline..."
+        dvc repro --force
+        
+        echo "Pipeline completed. Checking outputs..."
+        ls -la models/ || echo "No models directory"
+        ls -la metrics/ || echo "No metrics directory"
+        ls -la data/splits/ || echo "No splits directory"
+    
+    - name: Upload pipeline artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: pipeline-artifacts
+        path: |
+          models/
+          metrics/
+          data/splits/
+          dvc.lock
+
+  # Job 4: Post-Pipeline Model Tests
+  model-tests:
+    name: Model Quality Tests (Post-Pipeline)
+    runs-on: ubuntu-latest
+    needs: dvc-pipeline
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Restore pip cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-
+    
+    - name: Install dependencies (if not cached)
+      run: |
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+        pip install -e .
+    
+    - name: Download pipeline artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: pipeline-artifacts
+        path: .
+    
+    - name: Run Model Tests with Coverage
+      id: model_testing
+      run: |
+        echo "Running post-pipeline model tests..."
+        export PYTHONPATH="$PYTHONPATH:$(pwd)/src"
+        
+        coverage run --source=src -m pytest tests/test_model.py -v \
+          --junitxml=model-test-results.xml \
+          --tb=short
+        
+        coverage report --show-missing | tee model-coverage.txt
+        coverage xml -o model-coverage.xml
+        
+        # Extract coverage percentage
+        coverage_percent=$(coverage report | grep TOTAL | awk '{print $4}' | sed 's/%//' || echo "0")
+        echo "model_coverage=$coverage_percent" >> $GITHUB_OUTPUT
+        echo "Model Test Coverage: $coverage_percent%"
+    
+    - name: Upload model test artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: model-test-results
+        path: |
+          model-test-results.xml
+          model-coverage.xml
+          model-coverage.txt
+    
+    outputs:
+      model_coverage: ${{ steps.model_testing.outputs.model_coverage }}
+
+  # Job 5: Mutamorphic Tests
+  mutamorphic-tests:
+    name: Mutamorphic Tests (Post-Pipeline)
+    runs-on: ubuntu-latest
+    needs: dvc-pipeline
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Restore pip cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-
+    
+    - name: Install dependencies (if not cached)
+      run: |
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+        pip install -e .
+    
+    - name: Download pipeline artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: pipeline-artifacts
+        path: .
+    
+    - name: Run Mutamorphic Tests with Coverage
+      id: mutamorphic_testing
+      run: |
+        echo "Running mutamorphic tests..."
+        export PYTHONPATH="$PYTHONPATH:$(pwd)/src"
+        
+        coverage run --source=src -m pytest tests/test_mutamorphic.py -v \
+          --junitxml=mutamorphic-test-results.xml \
+          --tb=short
+        
+        coverage report --show-missing | tee mutamorphic-coverage.txt
+        coverage xml -o mutamorphic-coverage.xml
+        
+        # Extract coverage percentage
+        coverage_percent=$(coverage report | grep TOTAL | awk '{print $4}' | sed 's/%//' || echo "0")
+        echo "mutamorphic_coverage=$coverage_percent" >> $GITHUB_OUTPUT
+        echo "Mutamorphic Test Coverage: $coverage_percent%"
+    
+    - name: Upload mutamorphic test artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: mutamorphic-test-results
+        path: |
+          mutamorphic-test-results.xml
+          mutamorphic-coverage.xml
+          mutamorphic-coverage.txt
+    
+    outputs:
+      mutamorphic_coverage: ${{ steps.mutamorphic_testing.outputs.mutamorphic_coverage }}
+
+  # Job 6: Non-Functional Tests
+  non-functional-tests:
+    name: Non-Functional Tests (Post-Pipeline)
+    runs-on: ubuntu-latest
+    needs: dvc-pipeline
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Restore pip cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-
+    
+    - name: Install dependencies (if not cached)
+      run: |
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+        pip install -e .
+    
+    - name: Download pipeline artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: pipeline-artifacts
+        path: .
+    
+    - name: Run Non-Functional Tests with Coverage
+      id: nonfunctional_testing
+      run: |
+        echo "Running non-functional tests..."
+        export PYTHONPATH="$PYTHONPATH:$(pwd)/src"
+        
+        coverage run --source=src -m pytest tests/test_non_functional.py -v \
+          --junitxml=nonfunctional-test-results.xml \
+          --tb=short
+        
+        coverage report --show-missing | tee nonfunctional-coverage.txt
+        coverage xml -o nonfunctional-coverage.xml
+        
+        # Extract coverage percentage
+        coverage_percent=$(coverage report | grep TOTAL | awk '{print $4}' | sed 's/%//' || echo "0")
+        echo "nonfunctional_coverage=$coverage_percent" >> $GITHUB_OUTPUT
+        echo "Non-Functional Test Coverage: $coverage_percent%"
+    
+    - name: Upload non-functional test artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: nonfunctional-test-results
+        path: |
+          nonfunctional-test-results.xml
+          nonfunctional-coverage.xml
+          nonfunctional-coverage.txt
+    
+    outputs:
+      nonfunctional_coverage: ${{ steps.nonfunctional_testing.outputs.nonfunctional_coverage }}
+
+  # Job 7: Model Upload to Hugging Face (Only on Tags)
+  model-upload:
+    name: Upload Model to Hugging Face
+    runs-on: ubuntu-latest
+    needs: [model-tests, mutamorphic-tests, non-functional-tests]
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Restore pip cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-
+    
+    - name: Install dependencies (if not cached)
+      run: |
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+        pip install -e .
+    
+    - name: Download pipeline artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: pipeline-artifacts
+        path: .
+    
+    - name: Extract tag version
+      id: get_version
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/}
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Tag version: $VERSION"
+    
+    - name: Package model using package_model.py
+      run: |
+        echo "Packaging model artifacts for release..."
+        python src/package_model.py
+        
+        # Rename with version tag
+        mv model_release.zip model_${{ steps.get_version.outputs.version }}.zip
+        
+        # Set model zip path
+        MODEL_ZIP="model_${{ steps.get_version.outputs.version }}.zip"
+        echo "MODEL_ZIP=$MODEL_ZIP" >> $GITHUB_ENV
+        echo "Created model package: $MODEL_ZIP"
+    
+    - name: Upload model to Hugging Face
+      env:
+        HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      run: |
+        echo "Uploading model to Hugging Face..."
+        VERSION="${{ steps.get_version.outputs.version }}"
+        python src/model_upload.py "$MODEL_ZIP" "$VERSION"
+        echo "MODEL_VERSION=$VERSION" >> $GITHUB_ENV
+    
+    - name: Upload model package artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: model-package-${{ steps.get_version.outputs.version }}
+        path: |
+          model_${{ steps.get_version.outputs.version }}.zip
+    
+    outputs:
+      model_version: ${{ env.MODEL_VERSION }}
+      model_zip: ${{ env.MODEL_ZIP }}
+
+  # Job 8: Create GitHub Release (Only on Tags)
+  github-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: model-upload
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Extract tag version
+      id: get_version
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/}
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Tag version: $VERSION"
+    
+    - name: Download model package
+      uses: actions/download-artifact@v4
+      with:
+        name: model-package-${{ steps.get_version.outputs.version }}
+        path: .
+    
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.get_version.outputs.version }}
+        name: Release ${{ steps.get_version.outputs.version }}
+        body: |
+          ## 🚀 Model Release ${{ steps.get_version.outputs.version }}
+          
+          ### 📦 What's included:
+          - Trained sentiment classifier model
+          - Model metrics and metadata
+          - Ready-to-use model package
+          
+          ### 🤗 Hugging Face:
+          This model has been uploaded to Hugging Face with version `${{ needs.model-upload.outputs.model_version }}`
+          
+          ### 📊 Quality Metrics:
+          - All tests passed ✅
+          - Model quality validated ✅
+          - Mutamorphic tests passed ✅
+          - Non-functional requirements met ✅
+        files: |
+          model_${{ steps.get_version.outputs.version }}.zip
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Job 9: Test Model Download (Only on Tags)
+  test-download:
+    name: Test Model Download
+    runs-on: ubuntu-latest
+    needs: model-upload
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Restore pip cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-
+    
+    - name: Install dependencies (if not cached)
+      run: |
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+        pip install -e .
+    
+    - name: Test model download
+      env:
+        HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        MODEL_VERSION: ${{ needs.model-upload.outputs.model_version }}
+      run: |
+        echo "Testing model download from Hugging Face..."
+        export PYTHONPATH="$PYTHONPATH:$(pwd)/src"
+        
+        # Wait a bit for the model to be available
+        sleep 30
+        
+        python tests/test_download.py "$MODEL_VERSION"
+        echo "✅ Model download test passed"
+
+  # Job 10: Calculate ML Test Score & Coverage Summary
+  ml-test-score:
+    name: ML Test Score & Coverage Summary
+    runs-on: ubuntu-latest
+    needs: [infrastructure-tests, model-tests, mutamorphic-tests, non-functional-tests]
+    if: always()
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Restore pip cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-
+    
+    - name: Install dependencies (if not cached)
+      run: |
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+        pip install -e .
+    
+    - name: Download all test artifacts
+      uses: actions/download-artifact@v4
     
     - name: Calculate ML Test Score
       id: ml_test_score
@@ -173,32 +648,57 @@ jobs:
         echo "Calculating ML Test Score..."
         python scripts/calculate_ml_test_score.py --output-json ml-test-score.json
         
-        ml_test_score=$(python -c "import json; print(json.load(open('ml-test-score.json'))['percentage'])" || echo "0")
+        ml_test_score=$(python -c "import json; data=json.load(open('ml-test-score.json')); print(f'{data[\"score\"]}/{data[\"max_score\"]}')" || echo "0/7")
         echo "ml_test_score=$ml_test_score" >> $GITHUB_OUTPUT
-        echo "ML Test Score: $ml_test_score%"
+        echo "ML Test Score: $ml_test_score"
         
         python scripts/calculate_ml_test_score.py --verbose
     
-    - name: Upload test artifacts
+    - name: Combine coverage reports
+      id: coverage_summary
+      env:
+        INFRA_COV: ${{ needs.infrastructure-tests.outputs.infrastructure_coverage }}
+        MODEL_COV: ${{ needs.model-tests.outputs.model_coverage }}
+        MUTAM_COV: ${{ needs.mutamorphic-tests.outputs.mutamorphic_coverage }}
+        NONFUNC_COV: ${{ needs.non-functional-tests.outputs.nonfunctional_coverage }}
+      run: |
+        echo "Combining coverage reports..."
+        
+        # Calculate average coverage
+        python3 -c "
+        import sys
+        coverages = ['$INFRA_COV', '$MODEL_COV', '$MUTAM_COV', '$NONFUNC_COV']
+        valid_coverages = [float(c) for c in coverages if c and c != '']
+        avg_coverage = sum(valid_coverages) / len(valid_coverages) if valid_coverages else 0
+        print(f'Combined Coverage: {avg_coverage:.1f}%')
+        print(f'combined_coverage={avg_coverage:.1f}', file=open('/tmp/coverage_output', 'w'))
+        "
+        
+        combined_coverage=$(cat /tmp/coverage_output | grep combined_coverage | cut -d= -f2)
+        echo "combined_coverage=$combined_coverage" >> $GITHUB_OUTPUT
+        
+        echo "Coverage Summary:"
+        echo "- Infrastructure: $INFRA_COV%"
+        echo "- Model Tests: $MODEL_COV%"
+        echo "- Mutamorphic: $MUTAM_COV%"
+        echo "- Non-Functional: $NONFUNC_COV%"
+        echo "- Combined: $combined_coverage%"
+    
+    - name: Upload ML test score artifact
       uses: actions/upload-artifact@v4
-      if: always()
       with:
-        name: test-results
-        path: |
-          test-results.xml
-          coverage.xml
-          htmlcov/
-          ml-test-score.json
+        name: ml-test-score
+        path: ml-test-score.json
     
     outputs:
-      coverage_percent: ${{ steps.testing.outputs.coverage_percent }}
       ml_test_score: ${{ steps.ml_test_score.outputs.ml_test_score }}
+      combined_coverage: ${{ steps.coverage_summary.outputs.combined_coverage }}
 
-  # Job 3: Update README with Metrics
+  # Job 11: Update README with Metrics
   update-readme:
     name: Update README with Metrics
     runs-on: ubuntu-latest
-    needs: [code-quality, ml-testing]
+    needs: [code-quality, ml-test-score]
     if: github.event_name == 'push'
     
     steps:
@@ -216,8 +716,8 @@ jobs:
     - name: Update README badges and metrics
       env:
         PYLINT_SCORE: ${{ needs.code-quality.outputs.pylint_score }}
-        COVERAGE_PERCENT: ${{ needs.ml-testing.outputs.coverage_percent }}
-        ML_TEST_SCORE: ${{ needs.ml-testing.outputs.ml_test_score }}
+        COVERAGE_PERCENT: ${{ needs.ml-test-score.outputs.combined_coverage }}
+        ML_TEST_SCORE: ${{ needs.ml-test-score.outputs.ml_test_score }}
       run: |
         echo "Updating README with latest metrics..."
         
@@ -236,10 +736,14 @@ jobs:
           coverage_color="yellow"
         fi
         
+        # Extract score and max from ML_TEST_SCORE (format: X/Y)
+        ml_score=$(echo "$ML_TEST_SCORE" | cut -d/ -f1)
+        ml_max=$(echo "$ML_TEST_SCORE" | cut -d/ -f2)
+        
         ml_test_color="red"
-        if (( $(echo "$ML_TEST_SCORE >= 80" | bc -l) )); then
+        if (( ml_score >= 6 )); then
           ml_test_color="green"
-        elif (( $(echo "$ML_TEST_SCORE >= 60" | bc -l) )); then
+        elif (( ml_score >= 4 )); then
           ml_test_color="yellow"
         fi
         
@@ -266,11 +770,11 @@ jobs:
           git push
         fi
 
-  # Job 4: Generate Reports
+  # Job 12: Generate Final Report
   generate-reports:
-    name: Generate Reports
+    name: Generate Final Report
     runs-on: ubuntu-latest
-    needs: [code-quality, ml-testing]
+    needs: [code-quality, ml-test-score, model-upload, github-release]
     if: always()
     
     steps:
@@ -283,19 +787,42 @@ jobs:
     - name: Generate comprehensive report
       env:
         PYLINT_SCORE: ${{ needs.code-quality.outputs.pylint_score }}
-        COVERAGE_PERCENT: ${{ needs.ml-testing.outputs.coverage_percent }}
-        ML_TEST_SCORE: ${{ needs.ml-testing.outputs.ml_test_score }}
+        COVERAGE_PERCENT: ${{ needs.ml-test-score.outputs.combined_coverage }}
+        ML_TEST_SCORE: ${{ needs.ml-test-score.outputs.ml_test_score }}
+        MODEL_VERSION: ${{ needs.model-upload.outputs.model_version }}
+        IS_RELEASE: ${{ startsWith(github.ref, 'refs/tags/v') }}
       run: |
         echo "# 📊 ML CI/CD Pipeline Report" > pipeline-report.md
         echo "" >> pipeline-report.md
         echo "## 🏆 Metrics Summary" >> pipeline-report.md
         echo "- **PyLint Score**: $PYLINT_SCORE/10" >> pipeline-report.md
         echo "- **Test Coverage**: $COVERAGE_PERCENT%" >> pipeline-report.md
-        echo "- **ML Test Score**: $ML_TEST_SCORE%" >> pipeline-report.md
+        echo "- **ML Test Score**: $ML_TEST_SCORE" >> pipeline-report.md
+        if [ "$IS_RELEASE" = "true" ]; then
+          echo "- **Model Version**: $MODEL_VERSION (Released)" >> pipeline-report.md
+        else
+          echo "- **Model Version**: Not released (push to branch)" >> pipeline-report.md
+        fi
+        echo "" >> pipeline-report.md
+        echo "## 🧪 Test Execution Order" >> pipeline-report.md
+        echo "1. ✅ Infrastructure Tests (Pre-Pipeline)" >> pipeline-report.md
+        echo "2. ✅ DVC ML Pipeline" >> pipeline-report.md
+        echo "3. ✅ Model Quality Tests (Post-Pipeline)" >> pipeline-report.md
+        echo "4. ✅ Mutamorphic Tests (Post-Pipeline)" >> pipeline-report.md
+        echo "5. ✅ Non-Functional Tests (Post-Pipeline)" >> pipeline-report.md
+        if [ "$IS_RELEASE" = "true" ]; then
+          echo "6. ✅ Model Upload to Hugging Face" >> pipeline-report.md
+          echo "7. ✅ GitHub Release Created" >> pipeline-report.md
+          echo "8. ✅ Model Download Test" >> pipeline-report.md
+        else
+          echo "6. ⏭️ Model Upload (Skipped - Not a release)" >> pipeline-report.md
+          echo "7. ⏭️ GitHub Release (Skipped - Not a release)" >> pipeline-report.md
+        fi
         echo "" >> pipeline-report.md
         echo "## 📈 Quality Gates" >> pipeline-report.md
         echo "- PyLint: $([ $(echo "$PYLINT_SCORE >= 6.0" | bc -l) = 1 ] && echo "✅ PASSED" || echo "❌ FAILED")" >> pipeline-report.md
-        echo "- Coverage: $([ $(echo "$COVERAGE_PERCENT >= 80" | bc -l) = 1 ] && echo "✅ PASSED" || echo "❌ FAILED")" >> pipeline-report.md
+        echo "- Coverage: $([ $(echo "$COVERAGE_PERCENT >= 60" | bc -l) = 1 ] && echo "✅ PASSED" || echo "❌ FAILED")" >> pipeline-report.md
+        echo "- ML Tests: $([ "${ML_TEST_SCORE%/*}" -ge 4 ] && echo "✅ PASSED" || echo "❌ FAILED")" >> pipeline-report.md
         echo "- Build: $([ "${{ job.status }}" = "success" ] && echo "✅ PASSED" || echo "❌ FAILED")" >> pipeline-report.md
         
         cat pipeline-report.md

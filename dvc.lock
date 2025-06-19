@@ -92,6 +92,10 @@ stages:
       hash: md5
       md5: 102f1f4193e0bdebdd6cce7f13e0a839
       size: 54686
+    - path: src/preprocess.py
+      hash: md5
+      md5: 8b0d27c3a2aa25f0c5975ad0f5fa3a2a
+      size: 2487
     - path: tests/test_data.py
       hash: md5
       md5: 1c0540c857fd41e3180285e76a3db0b8
@@ -117,5 +121,5 @@ stages:
       size: 5888
     - path: tests/test_monitoring.py
       hash: md5
-      md5: 7297125e3d48effd18eb29ee0dc07be0
-      size: 1893
+      md5: e13d6c501059a946a9077545a5f3221a
+      size: 5258
