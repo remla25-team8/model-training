@@ -1,9 +1,9 @@
 # Model Training
 
 <!-- BADGES:START -->
-![PyLint](https://img.shields.io/badge/PyLint-10.0/10-green)
-![Coverage](https://img.shields.io/badge/Coverage-30%-red)
-![ML%20Test%20Score](https://img.shields.io/badge/ML%20Test%20Score-0%-red)
+![PyLint](https://img.shields.io/badge/PyLint-8.5/10-green)
+![Coverage](https://img.shields.io/badge/Coverage-71%-yellow)
+![ML%20Test%20Score](https://img.shields.io/badge/ML%20Test%20Score-1.0/7-orange)
 <!-- BADGES:END -->
 
 This repository contains the ML training pipeline.
