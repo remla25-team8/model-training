@@ -41,7 +41,7 @@ def test_data_quality(dataset):
     assert dataset['Liked'].isin([0, 1]).all(), "Labels should be binary (0 or 1)"
 
 
-def test_feature_distribution(dataset):
+def test_feature_distributions(dataset):
     """Test that feature distribution is reasonable"""
     X, _ = preprocess_data(dataset)
 

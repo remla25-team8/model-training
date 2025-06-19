@@ -663,7 +663,7 @@ jobs:
         echo "Calculating ML Test Score..."
         python scripts/calculate_ml_test_score.py --output-json ml-test-score.json
         
-        ml_test_score=$(python -c "import json; data=json.load(open('ml-test-score.json')); print(f'{data[\"score\"]}/{data[\"max_score\"]}')" || echo "0/7")
+        ml_test_score=$(python -c "import json; data=json.load(open('ml-test-score.json')); print(f'{data[\"final_score\"]}/7')" || echo "0/7")
         echo "ml_test_score=$ml_test_score" >> $GITHUB_OUTPUT
         echo "ML Test Score: $ml_test_score"
         
