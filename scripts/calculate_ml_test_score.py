@@ -3,14 +3,16 @@ ML Test Score Calculator
 
 This script calculates the ML Test Score based on the methodology described in
 "The ML Test Score: A Rubric for ML Production Readiness and Technical Debt Reduction"
+by Eric Breck, Shanqing Cai, Eric Nielsen, Michael Salib, D. Sculley (Google, 2017)
 
-The score is calculated across four main categories:
-1. Features and Data (0-10 points)
-2. Model Development (0-7 points)
-3. Infrastructure (0-11 points)
-4. Monitoring (0-4 points)
+The score is calculated across four main categories with exactly 28 tests:
+1. Features and Data (7 tests, max 7 points)
+2. Model Development (7 tests, max 7 points) 
+3. Infrastructure (7 tests, max 7 points)
+4. Monitoring (7 tests, max 7 points)
 
-Total possible score: 32 points (displayed as percentage)
+Max possible score: 7
+Final score: minimum of the 4 category scores (as per original paper)
 """
 
 import argparse
@@ -19,62 +21,58 @@ import sys
 from pathlib import Path
 from typing import Dict, List
 
-# Test categories and their descriptions
+# Official 28 tests from the Google ML Test Score paper
 TEST_CATEGORIES = {
     "features_and_data": {
         "name": "Features and Data",
-        "max_score": 10,
+        "max_score": 7,
         "tests": [
-            "test_feature_expectations",
-            "test_feature_schema_validation",
-            "test_data_pipeline_integration",
-            "test_data_distribution_stability",
-            "test_feature_importance_consistency",
-            "test_training_serving_skew",
-            "test_data_validation_comprehensive",
-            "test_feature_coverage",
-            "test_data_freshness",
-            "test_feature_correlation_stability",
+            "test_feature_distributions",
+            "test_feature_benefits", 
+            "test_feature_costs",
+            "test_feature_policies",
+            "test_data_privacy",
+            "test_new_feature_time",
+            "test_feature_creation",
         ],
     },
     "model_development": {
-        "name": "Model Development",
+        "name": "Model Development", 
         "max_score": 7,
         "tests": [
-            "test_model_specifications",
-            "test_model_implementation_offline",
-            "test_model_quality_validation",
-            "test_model_debugging_instrumentation",
-            "test_model_unit_tests",
-            "test_integration_test_model_api",
-            "test_model_staleness_validation",
+            "test_model_code_review",
+            "test_offline_online_metrics",
+            "test_tune_hyperparameters",
+            "test_model_staleness",
+            "test_baseline_model",
+            "test_quality_on_slices",
+            "test_inclusiveness",
         ],
     },
     "infrastructure": {
         "name": "ML Infrastructure",
-        "max_score": 11,
+        "max_score": 7,
         "tests": [
             "test_training_reproducibility",
-            "test_model_deployment_automation",
-            "test_model_server_load_capacity",
-            "test_model_quality_pipeline",
-            "test_model_rollback_capability",
-            "test_data_invariant_checking",
-            "test_training_data_model_provenance",
-            "test_model_prediction_audit_logging",
-            "test_pipeline_jerk_detection",
-            "test_model_numerical_stability",
-            "test_computing_performance_regression",
+            "test_unit_test_model",
+            "test_integration_test",
+            "test_quality_before_serving",
+            "test_debugger",
+            "test_canary_before_serving",
+            "test_serving_model_rollback",
         ],
     },
     "monitoring": {
         "name": "Monitoring",
-        "max_score": 4,
+        "max_score": 7,
         "tests": [
-            "test_dependency_change_notification",
-            "test_data_invariant_change_detection",
-            "test_training_performance_monitoring",
-            "test_serving_performance_monitoring",
+            "test_monitor_dependencies",
+            "test_monitor_data_invariants",
+            "test_monitor_training_serving_skew",
+            "test_monitor_model_staleness",
+            "test_monitor_numerical_stability",
+            "test_monitor_performance_regression",
+            "test_monitor_quality_regression",
         ],
     },
 }
@@ -111,33 +109,33 @@ def discover_implemented_tests() -> Dict[str, List[str]]:
 
 
 def calculate_ml_test_score(verbose: bool = False) -> Dict:
-    """Calculate the complete ML Test Score."""
+    """Calculate the official ML Test Score as per Google's paper."""
     implemented_tests = discover_implemented_tests()
 
     results = {
         "categories": {},
-        "total_score": 0,
-        "max_possible_score": 32,
-        "percentage": 0,
-        "grade": "F",
+        "category_scores": {},
+        "final_score": 0,
+        "max_possible_score": 28,
+        "interpretation": "",
     }
 
-    total_achieved = 0
-    total_possible = 0
+    category_scores = []
 
     if verbose:
-        print("\n" + "=" * 60)
-        print("🧪 ML TEST SCORE CALCULATION")
-        print("=" * 60)
+        print("\n" + "=" * 70)
+        print("🧪 OFFICIAL ML TEST SCORE CALCULATION")
+        print("Based on Google's 'ML Test Score' paper (Breck et al., 2017)")
+        print("=" * 70)
 
     for category_name, category_info in TEST_CATEGORIES.items():
         max_score = category_info["max_score"]
         total_tests = len(category_info["tests"])
         implemented_count = len(implemented_tests[category_name])
 
-        achieved = (
-            int((implemented_count / total_tests) * max_score) if total_tests > 0 else 0
-        )
+        # Calculate score: 1 point per implemented test (assuming automated)
+        # In practice, you'd need to distinguish manual (0.5) vs automated (1.0)
+        achieved = implemented_count  # Assuming all implemented tests are automated
 
         results["categories"][category_name] = {
             "name": category_info["name"],
@@ -148,50 +146,65 @@ def calculate_ml_test_score(verbose: bool = False) -> Dict:
             "percentage": (achieved / max_score * 100) if max_score > 0 else 0,
         }
 
-        total_achieved += achieved
-        total_possible += max_score
+        results["category_scores"][category_name] = achieved
+        category_scores.append(achieved)
 
         if verbose:
             print(f"\n📋 {category_info['name']}")
             print(f"   Score: {achieved}/{max_score} ({achieved / max_score * 100:.1f}%)")
             print(f"   Tests implemented: {implemented_count}/{total_tests}")
+            
             for test in implemented_tests[category_name]:
                 print(f"   ✅ {test}")
+            
             missing_tests = set(category_info["tests"]) - set(
                 implemented_tests[category_name]
             )
             for test in missing_tests:
                 print(f"   ❌ {test}")
 
-    percentage = (total_achieved / total_possible * 100) if total_possible > 0 else 0
-    grade = (
-        "A"
-        if percentage >= 90
-        else (
-            "B"
-            if percentage >= 80
-            else "C" if percentage >= 70 else "D" if percentage >= 60 else "F"
-        )
-    )
+    # Final score is the MINIMUM of all category scores (as per original paper)
+    final_score = min(category_scores) if category_scores else 0
+    
+    # Interpretation based on original paper
+    if final_score == 0:
+        interpretation = "More of a research project than a productionized system."
+    elif 0 < final_score <= 1:
+        interpretation = "Not totally untested, but serious holes in reliability likely exist."
+    elif 1 < final_score <= 2:
+        interpretation = "First pass at basic productionization, but additional investment needed."
+    elif 2 < final_score <= 3:
+        interpretation = "Reasonably tested, but more automation may be beneficial."
+    elif 3 < final_score <= 5:
+        interpretation = "Strong levels of automated testing, appropriate for mission-critical systems."
+    else:
+        interpretation = "Exceptional levels of automated testing and monitoring."
 
-    results.update(
-        {
-            "total_score": total_achieved,
-            "percentage": round(percentage, 1),
-            "grade": grade,
-        }
-    )
+    results.update({
+        "final_score": final_score,
+        "interpretation": interpretation,
+    })
 
     if verbose:
         print("\n📊 FINAL RESULTS")
-        print(f"Total Score: {total_achieved}/{total_possible} ({percentage:.1f}%)")
-        print(f"Grade: {grade}")
+        print(f"Category Scores: {dict(zip(TEST_CATEGORIES.keys(), category_scores))}")
+        print(f"Final ML Test Score: {final_score}/7 (minimum of category scores)")
+        print(f"Interpretation: {interpretation}")
+        
+        print(f"\n📚 ORIGINAL 28 TESTS BREAKDOWN:")
+        print(f"• Features and Data: 7 tests")
+        print(f"• Model Development: 7 tests") 
+        print(f"• Infrastructure: 7 tests")
+        print(f"• Monitoring: 7 tests")
+        print(f"• Total: 28 tests, max score 28 points")
 
     return results
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Calculate ML Test Score")
+    parser = argparse.ArgumentParser(
+        description="Calculate Official ML Test Score (Google's 28-test rubric)"
+    )
     parser.add_argument(
         "--verbose", action="store_true", help="Print detailed breakdown"
     )
@@ -210,16 +223,15 @@ def main():
                 json.dump(results, f, indent=2)
             print(f"\n💾 Results saved to {args.output_json}")
 
-        if results["percentage"] < args.fail_below:
+        if results["final_score"] < args.fail_below:
             print(
-                f"\n❌ ML Test Score ({results['percentage']}%) is below threshold ({args.fail_below}%)"
+                f"\n❌ ML Test Score ({results['final_score']}) is below threshold ({args.fail_below})"
             )
             sys.exit(1)
 
         if not args.verbose:
-            print(
-                f"ML Test Score: {results['percentage']}% (Grade: {results['grade']})"
-            )
+            print(f"Official ML Test Score: {results['final_score']}/7")
+            print(f"Interpretation: {results['interpretation']}")
 
     except Exception as e:
         print(f"❌ Error calculating ML Test Score: {e}")

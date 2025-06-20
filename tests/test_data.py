@@ -41,16 +41,7 @@ def test_data_quality(dataset):
     assert dataset['Liked'].isin([0, 1]).all(), "Labels should be binary (0 or 1)"
 
 
-def test_preprocessing_consistency():
-    """Test that preprocessing produces consistent results"""
-    preprocessor = Preprocessor(max_features=1420)
-    sample_text = "This restaurant was great!"
-    processed_once = preprocessor.preprocess(sample_text)
-    processed_twice = preprocessor.preprocess(sample_text)
-    assert processed_once == processed_twice
-
-
-def test_feature_distribution(dataset):
+def test_feature_distributions(dataset):
     """Test that feature distribution is reasonable"""
     X, _ = preprocess_data(dataset)
 

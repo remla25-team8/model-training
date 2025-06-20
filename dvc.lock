@@ -92,7 +92,34 @@ stages:
       hash: md5
       md5: 102f1f4193e0bdebdd6cce7f13e0a839
       size: 54686
+    - path: src/preprocess.py
+      hash: md5
+      md5: 8b0d27c3a2aa25f0c5975ad0f5fa3a2a
+      size: 2487
     - path: tests/test_data.py
       hash: md5
-      md5: 95ddbfd2bbc1fe99946147e2d8d14354
-      size: 2990
+      md5: 1c0540c857fd41e3180285e76a3db0b8
+      size: 2628
+  monitor_prepared_data:
+    cmd: pytest tests/test_monitoring.py
+    deps:
+    - path: data/splits/X_test.npy
+      hash: md5
+      md5: d2884824a03d158e5494d4a1a7aedf34
+      size: 2044928
+    - path: data/splits/X_train.npy
+      hash: md5
+      md5: 50cdc707778354daeaf330f251a752f7
+      size: 8179328
+    - path: data/splits/y_test.npy
+      hash: md5
+      md5: 600ef4282a577f6dc3224d76026f1921
+      size: 1568
+    - path: data/splits/y_train.npy
+      hash: md5
+      md5: f7133ef9eab9657fd8847d02553b6d21
+      size: 5888
+    - path: tests/test_monitoring.py
+      hash: md5
+      md5: e13d6c501059a946a9077545a5f3221a
+      size: 5258
