@@ -2,7 +2,7 @@
 
 <!-- BADGES:START -->
 ![PyLint](https://img.shields.io/badge/PyLint-8.5/10-green)
-![Coverage](https://img.shields.io/badge/Coverage-71%-yellow)
+![Coverage](https://img.shields.io/badge/Coverage-71%25-yellow)
 ![ML%20Test%20Score](https://img.shields.io/badge/ML%20Test%20Score-1.0/7-orange)
 <!-- BADGES:END -->
 

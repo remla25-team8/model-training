@@ -16,7 +16,7 @@ from typing import Optional
 def create_badge_url(label: str, message: str, color: str) -> str:
     """Create a shields.io badge URL."""
     label = label.replace(" ", "%20")
-    message = message.replace(" ", "%20")
+    message = message.replace(" ", "%20").replace("%", "%25")
     return f"https://img.shields.io/badge/{label}-{message}-{color}"
 
 
